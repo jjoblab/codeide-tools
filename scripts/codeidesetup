@@ -328,7 +328,11 @@ info "Installation d'OpenJDK $JDK_VERSION ${EXTRA_PKGS[*]:-}"
 # récent gagne ; rien n'est écrit si aucun JDK exécutable n'est trouvé —
 # mieux vaut pas de JAVA_HOME qu'un chemin fantôme.
 JAVA_HOME_DIR=""
-for candidat in $(ls -d "$SYSROOT_DIR"/lib/jvm/* "$SYSROOT_DIR"/opt/openjdk* 2>/dev/null | sort -V); do
+for candidat in $(
+    find "$SYSROOT_DIR/lib/jvm" "$SYSROOT_DIR/opt" -mindepth 1 -maxdepth 1 \
+        \( -path "$SYSROOT_DIR/lib/jvm/*" -o -path "$SYSROOT_DIR/opt/openjdk*" \) 2>/dev/null |
+        sort -V
+); do
   [ -x "$candidat/bin/java" ] && JAVA_HOME_DIR="$candidat"
 done
 
