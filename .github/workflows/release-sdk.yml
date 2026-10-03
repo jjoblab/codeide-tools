@@ -1,0 +1,54 @@
+name: Publier build-tools et platform-tools
+
+# Lancement manuel : Actions > « Publier build-tools et platform-tools » > Run workflow.
+# Fabrique les 6 archives (3 architectures x 2 composants), crée la release vX.Y.Z,
+# puis commite manifest.json mis à jour.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version du SDK, format X.Y.Z (ex. 35.0.2)"
+        required: true
+        type: string
+      source_tag:
+        description: "Tag de lzhiyong/android-sdk-tools (vide = identique à la version)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-manifest
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fabriquer et publier les archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODEIDE_TOOLS_REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+          SOURCE_TAG: ${{ inputs.source_tag }}
+        run: |
+          args=(sdk -v "$VERSION" -o dist -R)
+          if [ -n "$SOURCE_TAG" ]; then
+            args+=(-t "$SOURCE_TAG")
+          fi
+          ./scripts/package-sdk.sh "${args[@]}"
+
+      - name: Commiter le manifest
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git diff --cached --quiet || git commit -m "chore: publie les build-tools $VERSION"
+          git push

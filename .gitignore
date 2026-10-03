@@ -1,0 +1,5 @@
+# Sorties du packaging local
+dist/
+work/
+*.tar.xz
+*.zip

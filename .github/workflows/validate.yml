@@ -1,0 +1,38 @@
+name: Validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntaxe bash
+        run: |
+          for f in scripts/*; do
+            bash -n "$f"
+          done
+
+      - name: ShellCheck
+        run: shellcheck scripts/codeidesetup scripts/package-sdk.sh
+
+      - name: Manifest valide
+        run: |
+          jq empty manifest.json
+          jq -e '.build_tools and .platform_tools and .sha256' manifest.json >/dev/null
+          missing=$(
+            jq -r '[.build_tools[][]?, .platform_tools[][]?, .cmdline_tools, .android_sdk] | map(select(. != null)) | .[]' manifest.json |
+              while read -r url; do
+                name=${url##*/}
+                jq -e --arg f "$name" '.sha256[$f]' manifest.json >/dev/null || echo "$name"
+              done
+          )
+          if [ -n "$missing" ]; then
+            echo "Somme SHA-256 manquante pour :" >&2
+            echo "$missing" >&2
+            exit 1
+          fi

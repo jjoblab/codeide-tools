@@ -1,0 +1,332 @@
+#!/usr/bin/env bash
+#
+# codeidesetup — installeur des outils de build Android pour CodeIDE
+#
+# À exécuter dans le terminal de CodeIDE. Installe :
+#   - les build-tools et platform-tools Android pour l'architecture de l'appareil ;
+#   - (option -c) les command-line tools (sdkmanager, etc.) ;
+#   - OpenJDK 17 ou 21 via le gestionnaire de paquets ;
+#   - JAVA_HOME et ANDROID_SDK_ROOT dans ide-environment.properties.
+#
+# Les URLs (et les sommes SHA-256) sont lues dans manifest.json, publié dans ce dépôt.
+# Licence : GPL-3.0 (voir LICENSE).
+
+# Les filtres jq utilisent des variables jq ($a, $k, $f) : les apostrophes sont voulues.
+# shellcheck disable=SC2016
+set -euo pipefail
+
+REPO_SLUG="${CODEIDE_TOOLS_REPO:-jjoblab/codeide-tools}"
+DEFAULT_MANIFEST="https://raw.githubusercontent.com/${REPO_SLUG}/main/manifest.json"
+
+if [ -t 1 ]; then
+  C_RESET=$'\033[0m'
+  C_RED=$'\033[0;31m'
+  C_GREEN=$'\033[0;32m'
+  C_YELLOW=$'\033[0;33m'
+  C_BLUE=$'\033[0;34m'
+else
+  C_RESET='' C_RED='' C_GREEN='' C_YELLOW='' C_BLUE=''
+fi
+
+info() { printf '%s%s%s\n' "$C_BLUE" "$*" "$C_RESET"; }
+ok() { printf '%s%s%s\n' "$C_GREEN" "$*" "$C_RESET"; }
+warn() { printf '%s%s%s\n' "$C_YELLOW" "$*" "$C_RESET" >&2; }
+err() { printf '%s%s%s\n' "$C_RED" "$*" "$C_RESET" >&2; }
+die() {
+  err "Erreur : $*"
+  exit 1
+}
+
+usage() {
+  cat <<USAGE
+codeidesetup — installeur des outils de build Android pour CodeIDE
+
+Exemple :
+  codeidesetup -s 35.0.2 -c -j 17
+  Installe le SDK 35.0.2 avec les command-line tools et OpenJDK 17.
+
+Options :
+  -i DIR   Répertoire d'installation (défaut : \$HOME). Le SDK va dans DIR/android-sdk.
+  -s VER   Version du SDK (ex. 35.0.2) ou "latest" (défaut : la plus récente du manifest).
+  -c       Installer aussi les command-line tools (sdkmanager).
+  -j VER   Version d'OpenJDK : 17 ou 21 (défaut : 17).
+  -g       Installer aussi git.
+  -o       Installer aussi openssh.
+  -y       Répondre « oui » à toutes les questions (mode non interactif).
+  -L       Lister les versions disponibles pour l'architecture, puis quitter.
+  -m URL   URL (ou chemin local) du manifest.
+           Défaut : ${DEFAULT_MANIFEST}
+  -e FILE  Fichier ide-environment.properties à mettre à jour
+           (défaut : \$SYSROOT/etc/ide-environment.properties).
+
+Pour les tests :
+  -a ARCH  Architecture (aarch64, arm, x86_64). Défaut : détectée avec 'uname -m'.
+  -p CMD   Gestionnaire de paquets (défaut : pkg).
+  -l PKG   Nom du paquet curl à installer si curl est absent (défaut : curl).
+
+  -h       Affiche cette aide.
+
+Variables : SYSROOT (ou PREFIX) doit pointer vers la racine du système de CodeIDE.
+USAGE
+}
+
+# --- Valeurs par défaut ------------------------------------------------------
+
+INSTALL_DIR="${HOME:-}"
+SDK_VERSION="latest"
+WITH_CMDLINE=false
+JDK_VERSION="17"
+WANT_GIT=false
+WANT_SSH=false
+ASSUME_YES=false
+LIST_ONLY=false
+MANIFEST="$DEFAULT_MANIFEST"
+PROPS_FILE=""
+ARCH_RAW=""
+PKGM="pkg"
+PKG_CURL="curl"
+
+while getopts "hi:s:cj:goyLm:e:a:p:l:" opt; do
+  case "$opt" in
+    h)
+      usage
+      exit 0
+      ;;
+    i) INSTALL_DIR=$OPTARG ;;
+    s) SDK_VERSION=$OPTARG ;;
+    c) WITH_CMDLINE=true ;;
+    j) JDK_VERSION=$OPTARG ;;
+    g) WANT_GIT=true ;;
+    o) WANT_SSH=true ;;
+    y) ASSUME_YES=true ;;
+    L) LIST_ONLY=true ;;
+    m) MANIFEST=$OPTARG ;;
+    e) PROPS_FILE=$OPTARG ;;
+    a) ARCH_RAW=$OPTARG ;;
+    p) PKGM=$OPTARG ;;
+    l) PKG_CURL=$OPTARG ;;
+    *)
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+# --- Fonctions utilitaires ---------------------------------------------------
+
+confirm() {
+  local prompt=$1 ans=''
+  if [ "$ASSUME_YES" = true ]; then
+    return 0
+  fi
+  printf '%s [o/N] : ' "$prompt" >&2
+  if [ -t 0 ]; then
+    read -r ans || ans=''
+  elif { : </dev/tty; } 2>/dev/null; then
+    # Cas « curl ... | bash » : stdin est le script, on lit au clavier.
+    read -r ans </dev/tty || ans=''
+  fi
+  case "${ans,,}" in
+    o | oui | y | yes) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+normalize_arch() {
+  case "$1" in
+    aarch64 | arm64) echo aarch64 ;;
+    arm | armv7* | armv8l) echo arm ;;
+    x86_64 | amd64) echo x86_64 ;;
+    *) return 1 ;;
+  esac
+}
+
+fetch() {
+  curl -fL --retry 3 --retry-delay 2 --http1.1 --progress-bar -o "$2" "$1"
+}
+
+manifest_query() {
+  jq -r "$@" "$MANIFEST_FILE"
+}
+
+list_versions() {
+  manifest_query --arg a "$ARCH" \
+    '(.build_tools[$a] // {}) | keys[] | ltrimstr("_") | gsub("_"; ".")' | sort -V
+}
+
+component_url() { # section arch clé
+  manifest_query --arg a "$2" --arg k "$3" ".${1}[\$a][\$k] // empty"
+}
+
+top_level_url() {
+  manifest_query --arg k "$1" '.[$k] // empty'
+}
+
+ensure_prerequisites() {
+  local missing=()
+  command -v curl >/dev/null 2>&1 || missing+=("$PKG_CURL")
+  command -v jq >/dev/null 2>&1 || missing+=(jq)
+  command -v tar >/dev/null 2>&1 || missing+=(tar)
+  command -v xz >/dev/null 2>&1 || missing+=(xz-utils)
+  command -v sha256sum >/dev/null 2>&1 || missing+=(coreutils)
+  if [ "${#missing[@]}" -gt 0 ]; then
+    command -v "$PKGM" >/dev/null 2>&1 \
+      || die "'$PKGM' introuvable : impossible d'installer ${missing[*]}."
+    info "Installation des prérequis : ${missing[*]}"
+    "$PKGM" install -y "${missing[@]}"
+  fi
+}
+
+load_manifest() {
+  MANIFEST_FILE="$TMP_DIR/manifest.json"
+  info "Récupération du manifest…"
+  if [ -f "$MANIFEST" ]; then
+    cp "$MANIFEST" "$MANIFEST_FILE"
+  else
+    fetch "$MANIFEST" "$MANIFEST_FILE" \
+      || die "Téléchargement du manifest impossible : $MANIFEST (le dépôt est-il public ?)"
+  fi
+  jq empty "$MANIFEST_FILE" 2>/dev/null || die "Manifest JSON invalide : $MANIFEST"
+}
+
+download_extract() { # libellé url répertoire-de-destination
+  local label=$1 url=$2 dest_dir=$3
+  local name file expected actual
+  name="$(basename "$url")"
+  file="$TMP_DIR/$name"
+
+  info "Téléchargement : $label"
+  fetch "$url" "$file" || die "Échec du téléchargement : $url"
+
+  expected="$(manifest_query --arg f "$name" '.sha256[$f] // empty')"
+  if [ -n "$expected" ]; then
+    actual="$(sha256sum "$file" | cut -d' ' -f1)"
+    if [ "$actual" != "$expected" ]; then
+      die "SHA-256 invalide pour $name (attendu $expected, obtenu $actual)."
+    fi
+    ok "SHA-256 vérifié ($name)"
+  else
+    warn "Pas de somme SHA-256 dans le manifest pour $name : intégrité non vérifiée."
+  fi
+
+  mkdir -p "$dest_dir"
+  tar -xJf "$file" -C "$dest_dir"
+  rm -f "$file"
+  ok "$label installé dans $dest_dir"
+}
+
+upsert_property() { # fichier clé valeur
+  local file=$1 key=$2 value=$3 tmp
+  mkdir -p "$(dirname "$file")"
+  tmp="$(mktemp "${file}.XXXXXX")"
+  if [ -f "$file" ]; then
+    grep -v "^${key}=" "$file" >"$tmp" || true
+  fi
+  printf '%s=%s\n' "$key" "$value" >>"$tmp"
+  mv "$tmp" "$file"
+}
+
+# --- Programme principal -----------------------------------------------------
+
+TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/codeidesetup.XXXXXX")"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+ARCH_RAW="${ARCH_RAW:-$(uname -m)}"
+ARCH="$(normalize_arch "$ARCH_RAW")" || die "Architecture non supportée : $ARCH_RAW"
+
+if [ "$LIST_ONLY" = false ]; then
+  [ -n "$INSTALL_DIR" ] || die "Répertoire d'installation inconnu (HOME non défini ?). Utilisez -i."
+  case "$JDK_VERSION" in
+    17 | 21) ;;
+    *) die "Version d'OpenJDK invalide '$JDK_VERSION' (17 ou 21)." ;;
+  esac
+  SYSROOT_DIR="${SYSROOT:-${PREFIX:-}}"
+  [ -n "$SYSROOT_DIR" ] \
+    || die "SYSROOT (ou PREFIX) n'est pas défini : lancez ce script depuis le terminal de CodeIDE."
+  PROPS_FILE="${PROPS_FILE:-$SYSROOT_DIR/etc/ide-environment.properties}"
+fi
+
+ensure_prerequisites
+load_manifest
+
+if [ "$LIST_ONLY" = true ]; then
+  info "Versions disponibles pour $ARCH :"
+  list_versions
+  exit 0
+fi
+
+if [ "$SDK_VERSION" = latest ]; then
+  SDK_VERSION="$(list_versions | tail -n 1)"
+  [ -n "$SDK_VERSION" ] \
+    || die "Aucune version de build-tools publiée pour '$ARCH' dans le manifest."
+fi
+[[ "$SDK_VERSION" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]] || die "Version de SDK invalide : $SDK_VERSION"
+
+VERSION_KEY="_${SDK_VERSION//./_}"
+BUILD_TOOLS_URL="$(component_url build_tools "$ARCH" "$VERSION_KEY")"
+PLATFORM_TOOLS_URL="$(component_url platform_tools "$ARCH" "$VERSION_KEY")"
+if [ -z "$BUILD_TOOLS_URL" ] || [ -z "$PLATFORM_TOOLS_URL" ]; then
+  die "SDK $SDK_VERSION indisponible pour '$ARCH'. Versions publiées : $(list_versions | tr '\n' ' ')"
+fi
+
+BASE_SDK_URL="$(top_level_url android_sdk)"
+CMDLINE_URL=""
+if [ "$WITH_CMDLINE" = true ]; then
+  CMDLINE_URL="$(top_level_url cmdline_tools)"
+  [ -n "$CMDLINE_URL" ] || die "Les command-line tools ne sont pas publiés dans le manifest."
+fi
+
+SDK_DIR="$INSTALL_DIR/android-sdk"
+EXTRA_PKGS=()
+[ "$WANT_GIT" = true ] && EXTRA_PKGS+=(git)
+[ "$WANT_SSH" = true ] && EXTRA_PKGS+=(openssh)
+
+if [ "$JDK_VERSION" = 21 ]; then
+  warn "OpenJDK 21 est expérimental dans CodeIDE et exige Gradle 8.4 ou plus récent."
+  if ! confirm "Installer quand même OpenJDK 21 ?"; then
+    JDK_VERSION=17
+    info "OpenJDK 17 sera installé à la place."
+  fi
+fi
+
+echo "------------------------------------------"
+echo "Architecture            : $ARCH"
+echo "SDK                     : $SDK_VERSION"
+echo "Répertoire du SDK       : $SDK_DIR"
+echo "Command-line tools      : $WITH_CMDLINE"
+echo "OpenJDK                 : $JDK_VERSION"
+echo "Paquets supplémentaires : ${EXTRA_PKGS[*]:-aucun}"
+echo "Fichier d'environnement : $PROPS_FILE"
+echo "------------------------------------------"
+confirm "Confirmer l'installation ?" || die "Installation annulée."
+
+mkdir -p "$SDK_DIR"
+
+if [ -n "$BASE_SDK_URL" ]; then
+  download_extract "Android SDK (base)" "$BASE_SDK_URL" "$SDK_DIR"
+fi
+download_extract "Build-tools $SDK_VERSION" "$BUILD_TOOLS_URL" "$SDK_DIR"
+download_extract "Platform-tools $SDK_VERSION" "$PLATFORM_TOOLS_URL" "$SDK_DIR"
+if [ -n "$CMDLINE_URL" ]; then
+  download_extract "Command-line tools" "$CMDLINE_URL" "$SDK_DIR"
+fi
+
+if [ ! -x "$SDK_DIR/build-tools/$SDK_VERSION/aapt2" ]; then
+  warn "aapt2 introuvable dans $SDK_DIR/build-tools/$SDK_VERSION : vérifiez le contenu de l'archive."
+fi
+
+command -v "$PKGM" >/dev/null 2>&1 || die "'$PKGM' introuvable : impossible d'installer OpenJDK."
+info "Mise à jour de la liste des paquets…"
+"$PKGM" update
+info "Installation d'OpenJDK $JDK_VERSION ${EXTRA_PKGS[*]:-}"
+"$PKGM" install -y "openjdk-$JDK_VERSION" ${EXTRA_PKGS[@]+"${EXTRA_PKGS[@]}"}
+
+JAVA_HOME_DIR="$SYSROOT_DIR/opt/openjdk"
+[ -d "$JAVA_HOME_DIR" ] || warn "$JAVA_HOME_DIR n'existe pas : vérifiez l'installation d'OpenJDK."
+
+info "Mise à jour de $PROPS_FILE"
+upsert_property "$PROPS_FILE" JAVA_HOME "$JAVA_HOME_DIR"
+upsert_property "$PROPS_FILE" ANDROID_SDK_ROOT "$SDK_DIR"
+
+ok "Terminé. Redémarrez le terminal de CodeIDE pour appliquer l'environnement."

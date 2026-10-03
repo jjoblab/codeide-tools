@@ -1,0 +1,49 @@
+name: Publier les command-line tools
+
+# Lancement manuel. L'URL doit pointer vers le zip officiel « commandlinetools-linux-*_latest.zip »
+# de Google (indépendant de l'architecture). Publie la release « sdk » et met à jour manifest.json.
+
+on:
+  workflow_dispatch:
+    inputs:
+      zip_url:
+        description: "URL https://dl.google.com/android/repository/commandlinetools-linux-XXXXXXX_latest.zip"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-manifest
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier l'URL
+        env:
+          ZIP_URL: ${{ inputs.zip_url }}
+        run: |
+          case "$ZIP_URL" in
+            https://dl.google.com/android/repository/commandlinetools-linux-*_latest.zip) ;;
+            *) echo "URL non reconnue : $ZIP_URL" >&2; exit 1 ;;
+          esac
+
+      - name: Fabriquer et publier l'archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODEIDE_TOOLS_REPO: ${{ github.repository }}
+          ZIP_URL: ${{ inputs.zip_url }}
+        run: ./scripts/package-sdk.sh cmdline -z "$ZIP_URL" -o dist -R
+
+      - name: Commiter le manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git diff --cached --quiet || git commit -m "chore: publie les command-line tools"
+          git push

@@ -1,0 +1,15 @@
+{
+    "android_sdk": null,
+    "build_tools": {
+        "aarch64": {},
+        "arm": {},
+        "x86_64": {}
+    },
+    "cmdline_tools": null,
+    "platform_tools": {
+        "aarch64": {},
+        "arm": {},
+        "x86_64": {}
+    },
+    "sha256": {}
+}
