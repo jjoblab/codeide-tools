@@ -116,9 +116,29 @@ fetch() {
   curl -fL --retry 3 --retry-delay 2 --http1.1 --progress-bar -o "$2" "$1"
 }
 
+# Manifest vide canonique, créé s'il manque (fabrication hors dépôt cloné
+# ou premier usage avec -m) — mêmes clés que le manifest du dépôt.
+MANIFEST_VIERGE='{
+    "android_sdk": null,
+    "build_tools": {
+        "aarch64": {},
+        "arm": {},
+        "x86_64": {}
+    },
+    "cmdline_tools": null,
+    "platform_tools": {
+        "aarch64": {},
+        "arm": {},
+        "x86_64": {}
+    },
+    "sha256": {}
+}'
+
 manifest_update() { # arguments jq (options puis filtre)
   local tmp
-  [ -f "$MANIFEST" ] || die "Manifest introuvable : $MANIFEST"
+  if [ ! -f "$MANIFEST" ]; then
+    printf '%s\n' "$MANIFEST_VIERGE" >"$MANIFEST"
+  fi
   tmp="$(mktemp)"
   jq -S --indent 4 "$@" "$MANIFEST" >"$tmp"
   mv "$tmp" "$MANIFEST"
@@ -247,6 +267,19 @@ cmd_cmdline() {
   sdkmanager="$(find "$src" -maxdepth 3 -type f -path '*/bin/sdkmanager' -print -quit)"
   [ -n "$sdkmanager" ] || die "bin/sdkmanager introuvable dans le zip : est-ce bien commandlinetools ?"
   root="$(dirname "$(dirname "$sdkmanager")")"
+
+  # Garde anti-rev-19+ : les cmdline-tools récents délèguent sdkmanager à un
+  # binaire natif bin/android que Google ne publie Linux qu'en x86_64 —
+  # INEXÉCUTABLE sur les appareils Android aarch64 (majorité des téléphones,
+  # seule architecture du bootstrap CodeIDE à ce jour). Publier une telle
+  # archive ferait renaître le « not executable: 64-bit ELF file » corrigé
+  # en v0.48.0 côté app : on refuse la fabrication, period. Revs 100 % Java
+  # acceptées : 12.0 = commandlinetools-linux-11076708_latest.zip (épinglée
+  # par la commande android-sdk de CodeIDE).
+  if [ -f "$root/bin/android" ] &&
+    [ "$(head -c 4 "$root/bin/android" 2>/dev/null | od -An -tx1 | tr -d ' \n')" = "7f454c46" ]; then
+    die "Ce zip cmdline-tools porte le binaire natif bin/android (ELF, rev 19+) : sdkmanager y délègue et serait INEXÉCUTABLE sur Android aarch64. Utilise une rev 100 % Java, ex. commandlinetools-linux-11076708_latest.zip (rev 12.0)."
+  fi
 
   cp -a "$root/." "$stage/cmdline-tools/latest/"
   find "$stage" -type d -exec chmod 755 {} +

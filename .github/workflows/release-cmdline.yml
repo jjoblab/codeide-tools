@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       zip_url:
-        description: "URL https://dl.google.com/android/repository/commandlinetools-linux-XXXXXXX_latest.zip"
+        description: "URL https://dl.google.com/android/repository/commandlinetools-linux-XXXXXXX_latest.zip (rev 100 % Java, ex. 11076708 = rev 12.0 ; les rev 19+ portent bin/android x86_64 et sont refusées)"
         required: true
         type: string
 

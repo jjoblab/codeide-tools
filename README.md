@@ -69,6 +69,16 @@ Les plateformes (`android.jar`) ne sont pas incluses : avec `-c`, installez-les 
 Pour les command-line tools : **Actions → Publier les command-line tools**, avec l'URL
 `https://dl.google.com/android/repository/commandlinetools-linux-XXXXXXX_latest.zip`.
 
+> **Revs acceptées** : uniquement des cmdline-tools « 100 % Java » — rev **12.0**
+> (`commandlinetools-linux-11076708_latest.zip`) est la référence éprouvée. Les revs 19+
+> portent un binaire natif `bin/android` que Google ne publie Linux qu'en x86_64 :
+> `sdkmanager` y délègue et devient inexécutable sur un téléphone aarch64 —
+> `package-sdk.sh` refuse la fabrication de telles archives.
+
+> **OpenJDK 21** : l'option `-j 21` exige que le paquet `openjdk-21` existe dans le dépôt
+> APT `codeide-packages` (aujourd'hui seul `openjdk-17` y figure) ; l'installation échoue
+> sinon avec le message d'apt.
+
 ### En local
 
 Dépendances : `curl unzip tar xz jq sha256sum` (et `gh` pour publier).

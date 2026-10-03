@@ -322,11 +322,23 @@ info "Mise à jour de la liste des paquets…"
 info "Installation d'OpenJDK $JDK_VERSION ${EXTRA_PKGS[*]:-}"
 "$PKGM" install -y "openjdk-$JDK_VERSION" ${EXTRA_PKGS[@]+"${EXTRA_PKGS[@]}"}
 
-JAVA_HOME_DIR="$SYSROOT_DIR/opt/openjdk"
-[ -d "$JAVA_HOME_DIR" ] || warn "$JAVA_HOME_DIR n'existe pas : vérifiez l'installation d'OpenJDK."
+# Le JDK du dépôt APT codeide-packages s'installe dans lib/jvm/ (constaté
+# sur le fichier Contents-aarch64 du dépôt : usr/lib/jvm/java-17-openjdk/
+# bin/java) ; opt/openjdk* est l'emplacement de Termux standard. Le plus
+# récent gagne ; rien n'est écrit si aucun JDK exécutable n'est trouvé —
+# mieux vaut pas de JAVA_HOME qu'un chemin fantôme.
+JAVA_HOME_DIR=""
+for candidat in $(ls -d "$SYSROOT_DIR"/lib/jvm/* "$SYSROOT_DIR"/opt/openjdk* 2>/dev/null | sort -V); do
+  [ -x "$candidat/bin/java" ] && JAVA_HOME_DIR="$candidat"
+done
 
 info "Mise à jour de $PROPS_FILE"
-upsert_property "$PROPS_FILE" JAVA_HOME "$JAVA_HOME_DIR"
+if [ -n "$JAVA_HOME_DIR" ]; then
+  ok "JAVA_HOME : $JAVA_HOME_DIR"
+  upsert_property "$PROPS_FILE" JAVA_HOME "$JAVA_HOME_DIR"
+else
+  warn "Aucun JDK exécutable sous $SYSROOT_DIR (lib/jvm, opt/openjdk) : JAVA_HOME non écrit."
+fi
 upsert_property "$PROPS_FILE" ANDROID_SDK_ROOT "$SDK_DIR"
 
 ok "Terminé. Redémarrez le terminal de CodeIDE pour appliquer l'environnement."
