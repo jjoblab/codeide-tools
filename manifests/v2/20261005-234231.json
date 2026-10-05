@@ -1,0 +1,698 @@
+{
+  "compat": [
+    {
+      "aapt2": "36.0.0",
+      "agp": "9.4.1",
+      "buildTools": "36.0.0",
+      "compileSdk": "37",
+      "jdk": ">=17",
+      "note": "défaut AGP 9.4.1 ; bionic 36.x inexistant chez Lzhiyong (ADR 0002/0003)",
+      "status": "untested"
+    },
+    {
+      "aapt2": "35.0.2",
+      "agp": "9.4.1",
+      "buildTools": "35.0.2",
+      "compileSdk": "36",
+      "evidence": "hôte r2-matrice2 (AGP 9.4.1 x bt 35.0.1, apk OK, override aapt2) ; bionique équivalent 35.0.2 — appareil : smoke",
+      "jdk": ">=17",
+      "note": "via android.aapt2FromMavenOverride ; AGP auto-installe build-tools 36 x86_64 (63 Mio morts) sauf si 36 présent",
+      "status": "tested"
+    },
+    {
+      "aapt2": "35.0.2",
+      "agp": "9.4.1",
+      "buildTools": "35.0.2",
+      "compileSdk": "37",
+      "evidence": "hôte r2-cellules (AGP 9.4.1 x bt 35.0.1 x cs 37, apk OK)",
+      "jdk": ">=17",
+      "note": "idem — compileSdk 37 (android-37.2) lisible par aapt2 35",
+      "status": "tested"
+    },
+    {
+      "aapt2": "34.0.3",
+      "agp": "9.4.1",
+      "buildTools": "34.0.3",
+      "compileSdk": "36",
+      "evidence": "hôte r2-matrice2 (AGP 9.4.1 x bt 34.0.0 équivalent, apk OK via override)",
+      "jdk": ">=17",
+      "note": "aapt2 34 lit les tables 35+ ; auto-install AGP de bt 36 x86_64 en sus",
+      "status": "tested"
+    },
+    {
+      "aapt2": "33.0.3",
+      "agp": "9.4.1",
+      "buildTools": "33.0.3",
+      "compileSdk": ">=35",
+      "evidence": "hôte : aapt2 33 ne lit pas android.jar >= 35 (LoadedArsc.cpp, note 02 découverte 2)",
+      "incompatible": true,
+      "jdk": ">=17",
+      "note": "INCOMPATIBLE compileSdk >= 35",
+      "status": "tested"
+    },
+    {
+      "aapt2": "35.0.2",
+      "agp": "9.0.0",
+      "buildTools": "35.0.2",
+      "compileSdk": "36",
+      "evidence": "hôte r2-matrice2 (AGP 9.0.0 x bt 35.0.1 équivalent)",
+      "jdk": ">=17",
+      "note": "min bt 36.0.0 constatée aussi sur 9.0.0",
+      "status": "tested"
+    },
+    {
+      "aapt2": "35.0.2",
+      "agp": "8.13.0",
+      "buildTools": "35.0.2",
+      "compileSdk": "36",
+      "evidence": "hôte r2-matrice2 (AGP 8.13.0 x bt 35.0.1 équivalent, AUCUNE auto-installation — min 35.0.0 satisfaite)",
+      "jdk": ">=17",
+      "note": "combinaison recommandée : aucune auto-installation, aapt2 du SDK utilisée",
+      "status": "tested"
+    },
+    {
+      "aapt2": "34.0.3",
+      "agp": "8.13.0",
+      "buildTools": "34.0.3",
+      "compileSdk": "35",
+      "evidence": "hôte r2-cellules (AGP 8.13.0 x bt 34.0.0 équivalent x cs 35, apk OK)",
+      "jdk": ">=17",
+      "note": "bt 34 < min 35.0.0 : AGP auto-installe bt 35 en sus (demande ignorée)",
+      "status": "tested"
+    },
+    {
+      "aapt2": "33.0.3",
+      "agp": "8.0.0",
+      "buildTools": "33.0.3",
+      "compileSdk": "34",
+      "jdk": ">=17",
+      "note": "min bt 33.0.1 : 33.0.3 utilisée nativement (aucune auto-installation constatée) ; compileSdk <= 34 (aapt2 33) — plateformes <= 34 hors catalogue",
+      "status": "untested"
+    },
+    {
+      "aapt2": "35.0.2",
+      "agp": "8.x",
+      "buildTools": "35.0.2",
+      "compileSdk": "36",
+      "jdk": ">=17",
+      "note": "AGP 8.1-8.12 : mins bt déduites (34.0.0 pour 8.3+) — à confirmer en CI",
+      "status": "untested"
+    }
+  ],
+  "components": [
+    {
+      "arch": "aarch64",
+      "channel": "preview",
+      "critical": true,
+      "id": "build-tools",
+      "installPath": "build-tools/33.0.3",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r1",
+      "sha256": "00939fe362ab13c6967d881c776e572dd9fceff2aeb34cdfaf843aafe2e1bc90",
+      "size": 5252000,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/build-tools-33.0.3-r1/build-tools-33.0.3-r1-aarch64.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "build-tools/33.0.3/aapt2 version",
+        "expect": "Android Asset Packaging Tool"
+      },
+      "version": "33.0.3"
+    },
+    {
+      "arch": "arm",
+      "channel": "preview",
+      "critical": true,
+      "id": "build-tools",
+      "installPath": "build-tools/33.0.3",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r1",
+      "sha256": "13970c2f7375989207476efd3d26b16427a0ac3e21c6fc31a5128dc8165042e2",
+      "size": 4803468,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/build-tools-33.0.3-r1/build-tools-33.0.3-r1-arm.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "build-tools/33.0.3/aapt2 version",
+        "expect": "Android Asset Packaging Tool"
+      },
+      "version": "33.0.3"
+    },
+    {
+      "arch": "x86_64",
+      "channel": "preview",
+      "critical": true,
+      "id": "build-tools",
+      "installPath": "build-tools/33.0.3",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r1",
+      "sha256": "5c1d4f268413bc6d1ba8da05e246e5b8aad1b0751a28cedf528856d90b9c9902",
+      "size": 5806600,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/build-tools-33.0.3-r1/build-tools-33.0.3-r1-x86_64.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "build-tools/33.0.3/aapt2 version",
+        "expect": "Android Asset Packaging Tool"
+      },
+      "version": "33.0.3"
+    },
+    {
+      "arch": "aarch64",
+      "channel": "preview",
+      "critical": true,
+      "id": "build-tools",
+      "installPath": "build-tools/34.0.3",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r1",
+      "sha256": "f0c0cf377a85badd51c81ebbc4deb2206501794bca81886256e40ab8a8c94f22",
+      "size": 4413420,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/build-tools-34.0.3-r1/build-tools-34.0.3-r1-aarch64.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "build-tools/34.0.3/aapt2 version",
+        "expect": "Android Asset Packaging Tool"
+      },
+      "version": "34.0.3"
+    },
+    {
+      "arch": "arm",
+      "channel": "preview",
+      "critical": true,
+      "id": "build-tools",
+      "installPath": "build-tools/34.0.3",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r1",
+      "sha256": "9aee42a793015273ea8f7ffbaf70ba0527e0c34f3b2a8f13a0c9763b387bc640",
+      "size": 3388620,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/build-tools-34.0.3-r1/build-tools-34.0.3-r1-arm.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "build-tools/34.0.3/aapt2 version",
+        "expect": "Android Asset Packaging Tool"
+      },
+      "version": "34.0.3"
+    },
+    {
+      "arch": "x86_64",
+      "channel": "preview",
+      "critical": true,
+      "id": "build-tools",
+      "installPath": "build-tools/34.0.3",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r1",
+      "sha256": "2380cd1ff4c558f7b38f036ed650802c92704b9a6ba9a35b73c24fe0edf04021",
+      "size": 5184824,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/build-tools-34.0.3-r1/build-tools-34.0.3-r1-x86_64.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "build-tools/34.0.3/aapt2 version",
+        "expect": "Android Asset Packaging Tool"
+      },
+      "version": "34.0.3"
+    },
+    {
+      "arch": "aarch64",
+      "channel": "stable",
+      "critical": true,
+      "id": "build-tools",
+      "installPath": "build-tools/35.0.2",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r1",
+      "sha256": "c102f1fab71a1cb4aef468ab99d4b677fc1a28b3ad5c72aa25a3397c0cd5843f",
+      "size": 3097064,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/build-tools-35.0.2-r1/build-tools-35.0.2-r1-aarch64.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "build-tools/35.0.2/aapt2 version",
+        "expect": "Android Asset Packaging Tool"
+      },
+      "version": "35.0.2"
+    },
+    {
+      "arch": "arm",
+      "channel": "preview",
+      "critical": true,
+      "id": "build-tools",
+      "installPath": "build-tools/35.0.2",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r1",
+      "sha256": "d988f4ea3cafc3fba67655216d8bbe5dbcd74cc2bf695ccacfb6d4318443f5b9",
+      "size": 2866796,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/build-tools-35.0.2-r1/build-tools-35.0.2-r1-arm.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "build-tools/35.0.2/aapt2 version",
+        "expect": "Android Asset Packaging Tool"
+      },
+      "version": "35.0.2"
+    },
+    {
+      "arch": "x86_64",
+      "channel": "preview",
+      "critical": true,
+      "id": "build-tools",
+      "installPath": "build-tools/35.0.2",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r1",
+      "sha256": "c1a54f10447deb8c32c763481f9a48bf7389d5b02a952b532b7464695fe03658",
+      "size": 3221620,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/build-tools-35.0.2-r1/build-tools-35.0.2-r1-x86_64.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "build-tools/35.0.2/aapt2 version",
+        "expect": "Android Asset Packaging Tool"
+      },
+      "version": "35.0.2"
+    },
+    {
+      "arch": "any",
+      "archiveRoot": "cmdline-tools",
+      "channel": "stable",
+      "critical": false,
+      "id": "cmdline-tools",
+      "installPath": "cmdline-tools/latest",
+      "license": "android-sdk-license",
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r1",
+      "sha256": "2d2d50857e4eb553af5a6dc3ad507a17adf43d115264b1afc116f95c92e5e258",
+      "size": 153607504,
+      "sources": [
+        {
+          "url": "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+        }
+      ],
+      "verify": {
+        "cmd": "cmdline-tools/latest/bin/sdkmanager --version",
+        "expect": "^[0-9]+\\.[0-9]+$"
+      },
+      "version": "12.0"
+    },
+    {
+      "arch": "any",
+      "archiveRoot": "cmdline-tools",
+      "channel": "preview",
+      "critical": false,
+      "id": "cmdline-tools",
+      "installPath": "cmdline-tools/latest",
+      "license": "android-sdk-license",
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r1",
+      "sha256": "330f0db00456c26d0a7e6c7793a022fe170e5dbc03472f76e121db37cb6d4744",
+      "size": 163426701,
+      "sources": [
+        {
+          "url": "https://dl.google.com/android/repository/commandlinetools-linux-12700392_latest.zip"
+        }
+      ],
+      "verify": {
+        "cmd": "cmdline-tools/latest/bin/sdkmanager --version",
+        "expect": "^[0-9]+\\.[0-9]+$"
+      },
+      "version": "17.0"
+    },
+    {
+      "arch": "any",
+      "channel": "stable",
+      "critical": true,
+      "id": "platform",
+      "installPath": "platforms/android-35",
+      "license": "android-sdk-license",
+      "requires": [],
+      "revision": "r1",
+      "sha256": "0988cacad01b38a18a47bac14a0695f246bc76c1b06c0eeb8eb0dc825ab0c8e0",
+      "size": 64273788,
+      "sources": [
+        {
+          "url": "https://dl.google.com/android/repository/platform-35_r02.zip"
+        }
+      ],
+      "verify": {
+        "cmd": "platforms/android-35/android.jar",
+        "expect": "^$"
+      },
+      "version": "android-35"
+    },
+    {
+      "arch": "any",
+      "channel": "stable",
+      "critical": true,
+      "id": "platform",
+      "installPath": "platforms/android-36",
+      "license": "android-sdk-license",
+      "requires": [],
+      "revision": "r1",
+      "sha256": "37607369a28c5b640b3a7998868d45898ebcb777565a0e85f9acf36f29631d2e",
+      "size": 65878410,
+      "sources": [
+        {
+          "url": "https://dl.google.com/android/repository/platform-36_r02.zip"
+        }
+      ],
+      "verify": {
+        "cmd": "platforms/android-36/android.jar",
+        "expect": "^$"
+      },
+      "version": "android-36"
+    },
+    {
+      "arch": "any",
+      "channel": "stable",
+      "critical": true,
+      "id": "platform",
+      "installPath": "platforms/android-37.2",
+      "license": "android-sdk-license",
+      "requires": [],
+      "revision": "r1",
+      "sha256": "916410633df92a98da56aa7c87a1955f865f4d3b888373660794ef8173f72972",
+      "size": 68056472,
+      "sources": [
+        {
+          "url": "https://dl.google.com/android/repository/platform-37.2_r01.zip"
+        }
+      ],
+      "verify": {
+        "cmd": "platforms/android-37.2/android.jar",
+        "expect": "^$"
+      },
+      "version": "android-37.2"
+    },
+    {
+      "arch": "aarch64",
+      "channel": "preview",
+      "critical": true,
+      "id": "platform-tools",
+      "installPath": "platform-tools",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [],
+      "revision": "r1",
+      "sha256": "bed236af4af186a68451bc3536377926e6dd5f583f7517b7ad3cc06684fe534f",
+      "size": 5994404,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/platform-tools-33.0.3-r1/platform-tools-33.0.3-r1-aarch64.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "platform-tools/adb --version",
+        "expect": "Android Debug Bridge"
+      },
+      "version": "33.0.3"
+    },
+    {
+      "arch": "arm",
+      "channel": "preview",
+      "critical": true,
+      "id": "platform-tools",
+      "installPath": "platform-tools",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [],
+      "revision": "r1",
+      "sha256": "a3b0fc23dfc902fb430cc1c72946495f3b25373dbe300f61b70315e85fb5a61e",
+      "size": 5362912,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/platform-tools-33.0.3-r1/platform-tools-33.0.3-r1-arm.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "platform-tools/adb --version",
+        "expect": "Android Debug Bridge"
+      },
+      "version": "33.0.3"
+    },
+    {
+      "arch": "x86_64",
+      "channel": "preview",
+      "critical": true,
+      "id": "platform-tools",
+      "installPath": "platform-tools",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [],
+      "revision": "r1",
+      "sha256": "47980e827860d493718b217daa5c59d5605eaf3e375f73cbd8153bb92f33d651",
+      "size": 6655192,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/platform-tools-33.0.3-r1/platform-tools-33.0.3-r1-x86_64.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "platform-tools/adb --version",
+        "expect": "Android Debug Bridge"
+      },
+      "version": "33.0.3"
+    },
+    {
+      "arch": "aarch64",
+      "channel": "preview",
+      "critical": true,
+      "id": "platform-tools",
+      "installPath": "platform-tools",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [],
+      "revision": "r1",
+      "sha256": "1a86f98779ab87c6427f19da6654fb4b281d51f7442871ab8f27b80040152ec0",
+      "size": 5136692,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/platform-tools-34.0.3-r1/platform-tools-34.0.3-r1-aarch64.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "platform-tools/adb --version",
+        "expect": "Android Debug Bridge"
+      },
+      "version": "34.0.3"
+    },
+    {
+      "arch": "arm",
+      "channel": "preview",
+      "critical": true,
+      "id": "platform-tools",
+      "installPath": "platform-tools",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [],
+      "revision": "r1",
+      "sha256": "19337f48e43975873503cd5d9494fa66e15fd70a929a03634191a4ca0f58d959",
+      "size": 4297204,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/platform-tools-34.0.3-r1/platform-tools-34.0.3-r1-arm.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "platform-tools/adb --version",
+        "expect": "Android Debug Bridge"
+      },
+      "version": "34.0.3"
+    },
+    {
+      "arch": "x86_64",
+      "channel": "preview",
+      "critical": true,
+      "id": "platform-tools",
+      "installPath": "platform-tools",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [],
+      "revision": "r1",
+      "sha256": "c376c60b14bca4171dcdac8222a9ec8e77846bda94c1f3939358b526b83c6024",
+      "size": 6055612,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/platform-tools-34.0.3-r1/platform-tools-34.0.3-r1-x86_64.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "platform-tools/adb --version",
+        "expect": "Android Debug Bridge"
+      },
+      "version": "34.0.3"
+    },
+    {
+      "arch": "aarch64",
+      "channel": "stable",
+      "critical": true,
+      "id": "platform-tools",
+      "installPath": "platform-tools",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [],
+      "revision": "r1",
+      "sha256": "806d966ba31421e96a30259a706b7edc9649090314c058284159b2236e9997d0",
+      "size": 4376112,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/platform-tools-35.0.2-r1/platform-tools-35.0.2-r1-aarch64.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "platform-tools/adb --version",
+        "expect": "Android Debug Bridge"
+      },
+      "version": "35.0.2"
+    },
+    {
+      "arch": "arm",
+      "channel": "preview",
+      "critical": true,
+      "id": "platform-tools",
+      "installPath": "platform-tools",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [],
+      "revision": "r1",
+      "sha256": "e107918e4fa66e00a611b405390c2e13cab058ae04eaaaf20531a9782c1c5f36",
+      "size": 4089960,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/platform-tools-35.0.2-r1/platform-tools-35.0.2-r1-arm.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "platform-tools/adb --version",
+        "expect": "Android Debug Bridge"
+      },
+      "version": "35.0.2"
+    },
+    {
+      "arch": "x86_64",
+      "channel": "preview",
+      "critical": true,
+      "id": "platform-tools",
+      "installPath": "platform-tools",
+      "license": "Apache-2.0",
+      "minAndroidApi": 30,
+      "requires": [],
+      "revision": "r1",
+      "sha256": "54317da17bbaf71bb4fbb5e165eeebfd07b8e3314ec2c5ed73625adf94016d65",
+      "size": 4631764,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/platform-tools-35.0.2-r1/platform-tools-35.0.2-r1-x86_64.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "platform-tools/adb --version",
+        "expect": "Android Debug Bridge"
+      },
+      "version": "35.0.2"
+    }
+  ],
+  "generatedAt": "2026-10-05T23:42:04Z",
+  "profiles": {
+    "agp9": {
+      "components": [
+        "build-tools@35.0.2",
+        "platform-tools@35.0.2",
+        "platform@android-37.2",
+        "cmdline-tools@12.0"
+      ],
+      "description": "Profil de migration AGP 9.x : mêmes composants que default — voir docs/COMPAT.md (stratégies build-tools 36 : auto-install AGP, pipeline natif, ou rester en AGP 8.13)."
+    },
+    "default": {
+      "components": [
+        "build-tools@35.0.2",
+        "platform-tools@35.0.2",
+        "platform@android-36",
+        "cmdline-tools@12.0"
+      ],
+      "description": "Chaîne recommandée aujourd'hui : build-tools 35.0.2 (aapt2 lisible jusqu'à compileSdk 37, aucune auto-installation avec AGP 8.13) + plateforme 36 + cmdline-tools 12.0 (référence éprouvée)."
+    },
+    "full": {
+      "components": [
+        "build-tools@35.0.2",
+        "build-tools@34.0.3",
+        "build-tools@33.0.3",
+        "platform-tools@35.0.2",
+        "platform-tools@34.0.3",
+        "platform-tools@33.0.3",
+        "platform@android-37.2",
+        "platform@android-36",
+        "platform@android-35",
+        "cmdline-tools@12.0",
+        "cmdline-tools@17.0"
+      ],
+      "description": "Toutes les versions stables publiées — utiles pour les projets multi- compileSdk et les tests."
+    },
+    "minimal": {
+      "components": [
+        "build-tools@35.0.2",
+        "platform-tools@35.0.2",
+        "platform@android-36"
+      ],
+      "description": "Le strict minimum pour compiler : build-tools + plateforme. cmdline-tools absent (confort/extras seulement, critical: false)."
+    }
+  },
+  "schemaVersion": 2
+}
