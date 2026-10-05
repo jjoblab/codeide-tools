@@ -78,7 +78,9 @@ jobs:
           print(f"manifeste de test : {len(comps)} entrées")
           PY
           cat > smoke/fake-fetch <<'EOF'
-          #!/usr/bin/env sh
+          #!/system/bin/sh
+          # (/system/bin/sh existe dans l'image bionic ; /usr/bin/env n'y
+          # existe pas — shebang résolu par le noyau à l'exécution directe.)
           out=; url=
           while [ $# -gt 0 ]; do
             case $1 in
@@ -91,14 +93,17 @@ jobs:
           chmod +x smoke/fake-fetch
 
       - name: Smoke — install + verify --deep sur bionic aarch64 (termux-docker)
-        env:
-          SPECS: ${{ inputs.components }}
         run: |
           set -eu
+          # L'entrypoint de l'image exécute la commande via « su … system »
+          # (uid 1000) : ne PAS le contourner (--entrypoint) — pkg refuse root,
+          # et le env -i de l'entrypoint éliminerait toute var -e. Le banc doit
+          # être inscriptible pour cet uid (les volumes appartiennent au runner).
+          chmod -R a+rwX smoke
           docker run --rm \
-            --entrypoint /data/data/com.termux/files/usr/bin/bash \
-            -v "$PWD:/repo" -v "$PWD/smoke:/smoke" -e SPECS \
-            termux/termux-docker:latest -exc '
+            -v "$PWD:/repo" -v "$PWD/smoke:/smoke" \
+            termux/termux-docker:latest \
+            /data/data/com.termux/files/usr/bin/bash -exc '
               export PATH=/data/data/com.termux/files/usr/bin:$PATH
               export HOME=/smoke/home TMPDIR=/smoke/tmp
               export CODEIDE_TOOLS_MANIFEST=/smoke/smoke-manifest.json
@@ -107,7 +112,7 @@ jobs:
               pkg install -y jq coreutils tar xz-utils 2>/dev/null || pkg install -y jq coreutils tar xz
               cd /repo
               # Exécution RÉELLE de chaque binaire sur bionic (aapt2 version, adb --version) :
-              sh cli/codeide-sdk install $(echo "$SPECS" | tr "," " ") \
+              sh cli/codeide-sdk install $(echo "${{ inputs.components }}" | tr "," " ") \
                 --arch aarch64 --root /smoke/sdk || exit 5
               sh cli/codeide-sdk verify --deep --root /smoke/sdk || exit 5
               echo "SMOKE OK (bionic aarch64)"
