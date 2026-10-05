@@ -1,0 +1,35 @@
+NOTICE — codeide-tools
+======================
+
+Ce dépôt (GPL-3.0) distribue des composants logiciels d'origines distinctes.
+Chaque archive de composant embarque sa propre notice le cas échéant.
+
+Binaires natifs build-tools / platform-tools
+--------------------------------------------
+Construits depuis les sources AOSP par Lzhiyong/android-sdk-tools
+(https://github.com/Lzhiyong/android-sdk-tools, tag épinglé au catalogue,
+NDK r27b, API 30 — voir provenance.json de chaque release).
+Licence : Apache License 2.0 (AOSP).
+Une copie de la notice AOSP est embarquée dans chaque archive build-tools
+(`NOTICE.txt`, héritée du zip build-tools de Google) et
+`build/vendor/core-lambda-stubs/NOTICE.txt` du dépôt.
+
+core-lambda-stubs.jar
+---------------------
+Jar de 11 classes stub `java.lang.invoke` (≈ 15-17 Kio) construit par Google
+depuis les sources AOSP ; extrait du zip `build-tools_r<version>_linux.zip`
+de la même version (pin de provenance dans catalog/upstream/google.yaml).
+Licence : Apache License 2.0 (AOSP). Jamais exécuté ; exigé par la validation
+`BuildToolInfo.isValid` d'AGP (note de recherche 07 § 2).
+
+Command-line tools / plateformes (Google)
+-----------------------------------------
+NON redistribués : le manifeste pointe directement vers dl.google.com avec
+SHA-256 épinglé (clause 3.4 du « Android SDK License Agreement » — ADR 0005).
+L'utilisateur accepte la licence du SDK dans l'app CodeIDE, qui écrit ensuite
+les fichiers `licenses/` (contrat 12.5).
+
+Architecture
+------------
+Inspirée d'AndroidIDEOfficial/androidide-tools (GPL-3.0) — analyse de
+référence dans docs/research/01.

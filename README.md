@@ -1,132 +1,148 @@
 # codeide-tools
 
-Outils de build Android pour **CodeIDE** (`jo.codeide`) : build-tools, platform-tools et
-command-line tools compilés pour Android, plus l'installeur `codeidesetup` qui les déploie
-dans le terminal de l'IDE.
+Outils de build Android pour **CodeIDE** (`jo.codeide`) : build-tools,
+platform-tools, plateformes et command-line tools **exécutables sur un
+téléphone Android** (bionic : aarch64, arm, x86_64), distribués par un
+**manifeste v2** multi-versions, reproductible et vérifiable.
 
-Ce dépôt est l'équivalent de `androidide-tools` pour AndroidIDE. Il est volontairement séparé
-de [`codeide-packages`](https://github.com/jjoblab/codeide-packages) (fork de termux-packages) :
-les paquets du bootstrap et les versions du SDK n'ont pas le même cycle de vie.
+Ce dépôt est l'équivalent CodeIDE d'`androidide-tools` (AndroidIDE),
+volontairement séparé de [`codeide-packages`](https://github.com/jjoblab/codeide-packages)
+(bootstrap) : les versions du SDK et les paquets du système n'ont pas le même
+cycle de vie.
 
 ## Contenu
 
 ```
-manifest.json            URLs et sommes SHA-256 de chaque archive
-scripts/codeidesetup     installeur, exécuté dans le terminal de CodeIDE
-scripts/package-sdk.sh   fabrique les archives et met à jour manifest.json
-.github/workflows/       validation, publication des build-tools, publication des cmdline-tools
+catalog/                 SEULE SOURCE DE VÉRITÉ (ajouter une version = une PR ici)
+  upstream/*.yaml        épinglage des amonts (Lzhiyong, Google) : tag + SHA-256
+  components/*.yaml      une définition par composant (versions, verify, statut smoke)
+  compat.yaml            matrice AGP ↔ build-tools ↔ aapt2 ↔ compileSdk ↔ JDK
+  profiles.yaml          profils recommandés (default, minimal, full, agp9)
+schema/manifest.v2.schema.json   schéma normatif du manifeste (contrat 12.2)
+build/
+  package.sh             fabrication DÉTERMINISTE des archives (tar.xz reproductibles)
+  gen-manifest.py        catalogue + sommes → manifeste v2 + manifeste v1 + COMPAT.md
+  gen-golden.py          vecteurs de référence (régénération déterministe)
+  check-elf.py           contrôle ABI ELF de chaque binaire natif
+  vendor/                jar core-lambda-stubs (AOSP Apache-2.0, par version)
+cli/codeide-sdk          CLI POSIX sh (remplace codeidesetup — shim conservé)
+tests/golden/            vecteurs de référence partagés avec l'app CodeIDE
+tests/cli/               tests bats du CLI
+docs/                    recherche (R1-R7), ADR, COMPAT.md, CONTRIBUTING, SECURITY
+.github/workflows/       ci, build-component, publish (smoke obligatoire), veille
 ```
 
-Les archives elles-mêmes ne sont pas versionnées dans git : elles vivent dans les **releases**
-(`vX.Y.Z` pour le SDK, `sdk` pour les command-line tools).
+Les archives ne sont pas versionnées dans git : elles vivent dans les
+**releases** (`<id>-<version>-r<rev>` par quadruplet versionné — immuable).
 
-## Installation (dans le terminal de CodeIDE)
+## Installation (terminal de CodeIDE)
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/jjoblab/codeide-tools/main/scripts/codeidesetup -o codeidesetup
-bash codeidesetup -c
+curl -fsSL https://raw.githubusercontent.com/jjoblab/codeide-tools/main/cli/codeide-sdk -o codeide-sdk
+sh codeide-sdk install --profile default
 ```
 
-Sans option, le script installe la version la plus récente du manifest pour l'architecture
-de l'appareil, plus OpenJDK 17. Options utiles :
+Le CLI n'est **ni embarqué ni appelé par l'app** CodeIDE (contrat 12.6) : il
+sert à la CI, au dépannage (`doctor`) et à l'usage manuel. L'app implémente la
+même logique en Kotlin à partir du **même manifeste** ; l'équivalence est
+garantie par `tests/golden/` (manifestes valides/invalides, archives
+minuscules à sommes connues — importés par les tests de l'app).
 
-| Option | Effet |
-| --- | --- |
-| `-s 35.0.2` | version précise du SDK (défaut : la plus récente) |
-| `-c` | installe aussi les command-line tools (`sdkmanager`) |
-| `-j 21` | OpenJDK 21 au lieu de 17 (expérimental) |
-| `-g` / `-o` | installe aussi `git` / `openssh` |
-| `-y` | mode non interactif |
-| `-L` | liste les versions disponibles puis quitte |
-| `-i DIR` | répertoire d'installation (défaut : `$HOME`, SDK dans `DIR/android-sdk`) |
+Commandes : `list`, `install <id>[@<version>]… | install --profile <nom>`,
+`remove`, `verify [--deep]`, `doctor`, `env --print`, option `--json`.
+Codes de sortie et surcharges (`CODEIDE_TOOLS_MANIFEST`, `CODEIDE_ARCH`,
+`CODEIDE_SDK_ROOT`) : `docs/CLI.md`.
 
-`codeidesetup -h` affiche la liste complète.
+## URL du manifeste (à embarquer par CodeIDE)
 
-Le script :
+- **latest** : `https://jjoblab.github.io/codeide-tools/manifests/v2/latest.json`
+- **immuable** : `…/manifests/v2/<AAAAMMJJ-HHMMSS>.json`
 
-1. installe les prérequis manquants (`curl`, `jq`, `tar`, `xz-utils`) ;
-2. lit `manifest.json` et résout les URLs pour l'architecture (`aarch64`, `arm`, `x86_64`) ;
-3. télécharge chaque archive, **vérifie sa somme SHA-256** et l'extrait dans `android-sdk/` ;
-4. installe `openjdk-17` (ou `21`) avec le gestionnaire de paquets (`pkg`) ;
-5. écrit `JAVA_HOME` et `ANDROID_SDK_ROOT` dans `$SYSROOT/etc/ide-environment.properties`
-   (les autres lignes du fichier sont conservées).
+Servies par GitHub Pages (branche `gh-pages`, alimentée par `publish.yml`) ;
+**Pages est à activer une fois** par le propriétaire (Settings → Pages →
+branche `gh-pages`). Jusqu'à activation, l'app utilise sa constante
+configurable pointant le faux manifeste de test conforme :
+`tests/golden/manifest-test.json` (12.7).
+Le manifeste v1 reste publié, régénéré, à son URL historique :
+`https://raw.githubusercontent.com/jjoblab/codeide-tools/main/manifest.json`.
 
-Il a besoin de la variable `SYSROOT` (ou à défaut `PREFIX`) : elle est définie dans le terminal de CodeIDE.
+## Compatibilité AGP (l'essentiel — voir docs/COMPAT.md, généré)
 
-Les plateformes (`android.jar`) ne sont pas incluses : avec `-c`, installez-les via
-`sdkmanager --install "platforms;android-35"`.
+| AGP | build-tools minimale | avec build-tools 35.0.2 bionique |
+|---|---|---|
+| 9.x | **36.0.0** | demande ignorée → AGP auto-installe 36 **x86_64** ; le build passe grâce à l'override `android.aapt2FromMavenOverride` (aapt2 34/35 compatibles, mesuré) |
+| 8.13 | 35.0.0 | **aucune auto-installation**, aapt2 du SDK utilisée — combinaison recommandée |
+| 8.0 | 33.0.1 | 33.0.3 native — mais aapt2 33 ne lit pas `android.jar` ≥ 35 |
 
-## Publier une nouvelle version du SDK
+**aapt2 33.0.3 ne lit pas les plateformes ≥ 35** (échec de link, mesuré) ;
+aapt2 34.0.0/35.0.1 compilent compileSdk 36 **et** 37 via override.
 
-### Avec GitHub Actions (recommandé, rien à compiler sur le téléphone)
+## Ajouter une version (une PR, rien d'autre — critère d'acceptation)
 
-1. **Actions → Publier build-tools et platform-tools → Run workflow**.
-2. Saisissez la version (`35.0.2`). Le tag amont `lzhiyong/android-sdk-tools` est supposé
-   identique ; sinon renseignez `source_tag`.
-3. Le workflow crée la release `v35.0.2` avec 6 archives + `SHA256SUMS`, puis commite
-   `manifest.json`.
+1. `catalog/upstream/lzhiyong.yaml` (ou `google.yaml`) : pin du zip amont
+   (tag + SHA-256 + taille) ;
+2. `catalog/components/<id>.yaml` : entrée de version (+ statut smoke
+   `pending` — **jamais `ok` sans exécution prouvée**) ;
+3. PR. La CI valide le catalogue, `publish.yml` fabrique → smoke → publie,
+   les manifestes sont régénérés automatiquement.
 
-Pour les command-line tools : **Actions → Publier les command-line tools**, avec l'URL
-`https://dl.google.com/android/repository/commandlinetools-linux-XXXXXXX_latest.zip`.
+Détail pas à pas : `docs/CONTRIBUTING.md`.
 
-> **Revs acceptées** : uniquement des cmdline-tools « 100 % Java » — rev **12.0**
-> (`commandlinetools-linux-11076708_latest.zip`) est la référence éprouvée. Les revs 19+
-> portent un binaire natif `bin/android` que Google ne publie Linux qu'en x86_64 :
-> `sdkmanager` y délègue et devient inexécutable sur un téléphone aarch64 —
-> `package-sdk.sh` refuse la fabrication de telles archives.
+## Publication d'une révision
 
-> **OpenJDK 21** : l'option `-j 21` exige que le paquet `openjdk-21` existe dans le dépôt
-> APT `codeide-packages` (aujourd'hui seul `openjdk-17` y figure) ; l'installation échoue
-> sinon avec le message d'apt.
+**Actions → Publier → Run workflow** avec `id@version` (ex.
+`build-tools@35.0.2,platform-tools@35.0.2`). Séquence (ADR 0009) :
+build déterministe → **smoke sur bionique aarch64 (porte obligatoire)** →
+release immuable + `SHA256SUMS` + `provenance.json` + attestation GitHub →
+manifestes v2 (immuable + latest) **et** v1 → `main` + `gh-pages`.
 
-### En local
+Jamais d'écrasement d'asset : un quadruplet (`id`, `version`, `revision`,
+`arch`) publié n'est jamais modifié — un correctif = révision `r2` (test CI :
+les sha256 publiés ne bougent pas entre générations).
 
-Dépendances : `curl unzip tar xz jq sha256sum` (et `gh` pour publier).
+## Rétrocompatibilité v1 (transition)
+
+- `manifest.json` (v1) est **généré depuis le v2** et reste à son URL
+  historique — les apps v1 déjà installées continuent de fonctionner sans
+  changement (parité testée par la CI : octet-identique) ;
+- les releases v1 existantes (`v35.0.2`, `sdk`) et leurs URLs ne sont ni
+  supprimées ni modifiées ;
+- `scripts/codeidesetup` est un **shim de dépréciation** redirigeant vers
+  `codeide-sdk` (options v1 les plus utilisées conservées) ;
+- fin de transition (retrait du manifeste v1 et du shim) : **date à fixer par
+  le propriétaire** — announcez-la dans le CHANGELOG le moment venu.
+
+## Licences et redistribution (ADR 0005)
+
+- build-tools / platform-tools : binaires **AOSP Apache-2.0** construits par
+  [Lzhiyong/android-sdk-tools](https://github.com/Lzhiyong/android-sdk-tools)
+  — redistribués avec `NOTICE` ; le jar `core-lambda-stubs.jar` embarqué est
+  un artefact AOSP Apache-2.0 (jamais exécuté, exigé par la validation AGP) ;
+- cmdline-tools et plateformes : **pointeurs directs** `dl.google.com` avec
+  SHA-256 épinglé (clause 3.4 du contrat SDK Google : pas de miroir) — si
+  Google modifie un fichier, l'installation échoue proprement ;
+- **aucune licence pré-acceptée n'est livrée** : l'app CodeIDE écrit
+  `licenses/` après acceptation explicite de l'utilisateur (12.5).
+
+Licence du dépôt : GPL-3.0 (voir `LICENSE` et `NOTICE`).
+
+## Vérification d'intégrité
+
+Chaque archive est protégée par son SHA-256 (manifeste) ; la provenance des
+builds est attestée par GitHub (ADR 0007) :
 
 ```sh
-./scripts/package-sdk.sh sdk -v 35.0.2          # génère dist/*.tar.xz et met à jour manifest.json
-./scripts/package-sdk.sh sdk -v 35.0.2 -R       # idem + création de la release avec gh
-./scripts/package-sdk.sh cmdline -z commandlinetools-linux-XXXXXXX_latest.zip -R
+gh attestation verify build-tools-35.0.2-r1-aarch64.tar.xz --repo jjoblab/codeide-tools
 ```
 
-Si vous avez déjà téléchargé les zips amont : `-s DOSSIER` (fichiers
-`android-sdk-tools-static-<arch>.zip`). Pensez ensuite à commiter et pousser `manifest.json`.
+## Développement
 
-## Formats
-
-**manifest.json** (mêmes clés que le manifest d'AndroidIDE, plus les sommes SHA-256) :
-
-```json
-{
-    "android_sdk": null,
-    "build_tools": { "aarch64": { "_35_0_2": "https://…/build-tools-35.0.2-aarch64.tar.xz" } },
-    "cmdline_tools": "https://…/cmdline-tools.tar.xz",
-    "platform_tools": { "aarch64": { "_35_0_2": "https://…/platform-tools-35.0.2-aarch64.tar.xz" } },
-    "sha256": { "build-tools-35.0.2-aarch64.tar.xz": "…" }
-}
+```sh
+sh scripts/ci-checks.sh          # miroir exact de la CI (shellcheck, schéma,
+                                 # bats, parité v1, immuabilité, reproductibilité)
+python3 build/gen-manifest.py    # régénère manifestes + COMPAT.md
+bash build/package.sh <id>@<version>   # fabrique les archives (déterministe)
 ```
 
-Tant qu'aucune release n'est publiée, le manifest ne contient aucune version.
-
-**Archives** (extraites à la racine du SDK, `$HOME/android-sdk`) :
-
-| Archive | Contenu |
-| --- | --- |
-| `build-tools-X.Y.Z-<arch>.tar.xz` | `build-tools/X.Y.Z/` : `aapt`, `aapt2`, `aidl`, `dexdump`, `split-select`, `zipalign`, `source.properties` |
-| `platform-tools-X.Y.Z-<arch>.tar.xz` | `platform-tools/` : `adb`, `fastboot`, `mke2fs`, `sqlite3`, etc., `source.properties` |
-| `cmdline-tools.tar.xz` | `cmdline-tools/latest/` : `bin/sdkmanager`, `lib/`, etc. |
-
-## Remarques
-
-- **Ce dépôt doit rester public** : l'installeur télécharge le manifest et les releases sans
-  authentification.
-- Pour changer de dépôt (fork, test), définissez `CODEIDE_TOOLS_REPO=utilisateur/depot`
-  ou passez `-m URL_DU_MANIFEST` à `codeidesetup`.
-
-## Crédits et licence
-
-- Binaires Android compilés pour Android par [Lzhiyong/android-sdk-tools](https://github.com/Lzhiyong/android-sdk-tools).
-- Architecture inspirée de [AndroidIDEOfficial/androidide-tools](https://github.com/AndroidIDEOfficial/androidide-tools) (GPL-3.0).
-- Command-line tools : Google, distribués sous leurs propres conditions.
-
-Licence : GPL-3.0, voir [LICENSE](LICENSE).
+Dépendances locales : `python3` (+ `pyyaml`, `jsonschema`), `shellcheck`,
+`bats`, `curl`, `unzip`, `tar`, `xz`, `jq`.

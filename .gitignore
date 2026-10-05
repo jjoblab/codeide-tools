@@ -1,5 +1,10 @@
-# Sorties du packaging local
-dist/
+# Sorties de packaging (artefacts non versionnés) — le manifeste v2 de
+# référence reste committé (copie lisible ; Pages = source servie).
+dist/*
+!dist/manifest.v2.json
+build/cache/
 work/
 *.tar.xz
 *.zip
+smoke-proof.txt
+upstream-diff.md
