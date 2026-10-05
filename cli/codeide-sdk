@@ -382,6 +382,13 @@ run_verify_one() { # entrée-json
     printf '%s\n' "ABSENT $ipath"
     return 1
   fi
+  # Composants « any » non exécutables (plateformes : android.jar n'est pas
+  # un binaire — ADR 0011) : vérification de PRÉSENCE explicite, jamais muette.
+  first=${cmdpath%% *}
+  if [ ! -x "$SDK_ROOT/$first" ] && [ -f "$SDK_ROOT/$first" ]; then
+    printf '%s\n' "OK     $first (présence — composant any non exécutable, ADR 0011)"
+    return 0
+  fi
   out=$(cd "$SDK_ROOT" && $cmdpath 2>&1); rc=$?
   if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -Eq "$expect"; then
     printf '%s\n' "OK     $cmdpath"

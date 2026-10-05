@@ -2,6 +2,9 @@
 
 - Statut : accepté (2026-10-05)
 - Contexte : question de recherche R1 (note `docs/research/01`).
+- Périmètre confirmé par le propriétaire (2026-10-05, 1 ter.3) : **bionic
+  uniquement** — aucun outil SDK n'a à s'exécuter dans un rootfs PRoot/Ubuntu
+  (glibc) ; la cible reste aarch64/arm/x86_64 bionique.
 
 ## Décision
 
