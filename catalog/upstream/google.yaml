@@ -1,0 +1,40 @@
+# Amont Google (dl.google.com) — épinglage des composants pur Java (et des zips
+# build-tools Linux utilisés comme SOURCE du jar core-lambda-stubs embarqué).
+# Vérifié le 2026-10-05 (repository2-3.xml : révisions, URLs, tailles ; SHA-256 mesurés
+# après téléchargement intégral). Redistribution interdite pour les zips Google
+# (ADR 0005) : ces composants restent servis par dl.google.com.
+base-url: https://dl.google.com/android/repository
+license: android-sdk-license   # clause 3.4 : pas de miroir ; clause 3.5 : composants OSS à part
+cmdline-tools:
+  "12.0":
+    url: commandlinetools-linux-11076708_latest.zip
+    sha256: 2d2d50857e4eb553af5a6dc3ad507a17adf43d115264b1afc116f95c92e5e258
+    size: 153607504
+  "17.0":
+    url: commandlinetools-linux-12700392_latest.zip
+    sha256: 330f0db00456c26d0a7e6c7793a022fe170e5dbc03472f76e121db37cb6d4744
+    size: 163426701
+platforms:
+  "android-35":
+    url: platform-35_r02.zip
+    sha256: 0988cacad01b38a18a47bac14a0695f246bc76c1b06c0eeb8eb0dc825ab0c8e0
+    size: 64273788
+    archive-root: android-35
+  "android-36":
+    url: platform-36_r02.zip
+    sha256: 37607369a28c5b640b3a7998868d45898ebcb777565a0e85f9acf36f29631d2e
+    size: 65878410
+    archive-root: android-36
+  "android-37.2":
+    url: platform-37.2_r01.zip
+    sha256: 916410633df92a98da56aa7c87a1955f865f4d3b888373660794ef8173f72972
+    size: 68056472
+    archive-root: android-37.2
+# Zips build-tools Linux x86_64 de Google — utilisés UNIQUEMENT comme source du jar
+# core-lambda-stubs (AOSP Apache-2.0, jamais exécuté) embarqué dans nos archives
+# build-tools (exigé par la validation AGP — note de recherche 07 § 2). Jamais
+# redistribués eux-mêmes. Le jar 33.0.3 et 34.0.3 sont octet-identiques (mesuré).
+lambda-stubs-source:
+  "33.0.3": { url: build-tools_r33.0.3-linux.zip, sha256: 533329cc3450850d83433c5103006fc8b9b48f2798bbcc41c78ef3223171d4b1, root: android-13 }
+  "34.0.3": { url: build-tools_r34-linux.zip,     sha256: e858c4b60069d0431051b225d384413b1643e1289b00a4825aed347f25bd510f, root: android-14 }
+  "35.0.2": { url: build-tools_r35.0.1_linux.zip, sha256: 5993499f3229a021b89f87088c57242aeefaa62316bf3d69da7de40bfd5350f1, root: android-15 }

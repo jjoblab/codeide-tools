@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jjoblab.github.io/codeide-tools/schema/manifest.v2.schema.json",
+  "title": "Manifeste codeide-tools v2",
+  "description": "Schéma normatif du manifeste v2 (contrat commun 12.2 des prompts 1/2). Champs inconnus ignorés par les clients ; tout champ requis absent rend le manifeste invalide.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "components",
+    "profiles",
+    "compat"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2,
+      "description": "Version du schéma (entier). Toute évolution sémantique = incrément."
+    },
+    "generatedAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "description": "ISO 8601 UTC."
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "revision",
+          "arch",
+          "sources",
+          "sha256",
+          "size",
+          "installPath",
+          "critical",
+          "requires",
+          "verify"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "Identifiant du composant (build-tools, platform-tools, cmdline-tools, platform, aapt2… — ensemble ouvert, kebab-case). Pas de composant licenses (12.5)."
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+){1,2}$|^android-[0-9]+(\\.[0-9]+)?$",
+            "description": "Version amont (36.0.0) ou plateforme (android-36)."
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^r[0-9]+$",
+            "description": "Rebuild sans changement de version amont. Un quadruplet publié est immuable."
+          },
+          "arch": {
+            "enum": [
+              "aarch64",
+              "arm",
+              "x86_64",
+              "any"
+            ],
+            "description": "arm64-v8a = aarch64, armeabi-v7a = arm ; any = pur Java."
+          },
+          "channel": {
+            "enum": [
+              "stable",
+              "preview"
+            ],
+            "default": "stable",
+            "description": "L'app ignore preview."
+          },
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "url"
+              ],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "pattern": "^https://[^\\s]+$",
+                  "description": "URL absolue HTTPS, reprise HTTP (Range) supportée."
+                }
+              },
+              "additionalProperties": true
+            },
+            "description": "Tableau ordonné : primaire d'abord, puis miroirs essayés dans l'ordre et journalisés."
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "SHA-256 minuscule de l'archive."
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Taille de l'archive en octets."
+          },
+          "installPath": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._/-]*$",
+            "description": "Relatif à la racine du SDK, exclusif au composant, sans .. ni chemin absolu."
+          },
+          "critical": {
+            "type": "boolean",
+            "description": "cmdline-tools: false ; build-tools, platform-tools, plateformes, aapt2: true."
+          },
+          "requires": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*(@[0-9a-zA-Z.\\-]+)?$|^jdk>=[0-9]+$",
+              "description": "\"<id>\", \"<id>@<version>\" ou \"jdk>=<majeure>\"."
+            }
+          },
+          "verify": {
+            "type": "object",
+            "required": [
+              "cmd",
+              "expect"
+            ],
+            "properties": {
+              "cmd": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9 ./_\\-]*$",
+                "description": "Chemin relatif à la racine du SDK + arguments, exécuté sans shell, cwd = racine du SDK."
+              },
+              "expect": {
+                "type": "string",
+                "description": "Regex cherchée dans stdout + stderr."
+              },
+              "exitCode": {
+                "type": "integer",
+                "default": 0
+              }
+            },
+            "additionalProperties": false
+          },
+          "license": {
+            "type": "string",
+            "description": "Informatif (Apache-2.0, android-sdk-license…)."
+          },
+          "minAndroidApi": {
+            "type": "integer",
+            "description": "Informatif : API Android minimale exigée par les binaires."
+          },
+          "archiveRoot": {
+            "type": "string",
+            "description": "Additif (ignoré par les clients 2.x sans besoin) : racine de l'archive externe quand elle diffère de installPath (zips Google). L'installateur déplace la racine extraite vers installPath."
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "components"
+        ],
+        "properties": {
+          "components": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*@[0-9a-zA-Z.\\-]+$",
+              "description": "\"<id>@<version>\" (ex. build-tools@36.0.0)."
+            }
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "description": "Ensembles recommandés ; l'archiveRoot est documentée côté app."
+    },
+    "compat": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "agp",
+          "buildTools",
+          "aapt2",
+          "compileSdk",
+          "jdk",
+          "status"
+        ],
+        "properties": {
+          "agp": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9x]+){0,2}$"
+          },
+          "buildTools": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+          },
+          "aapt2": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+          },
+          "compileSdk": {
+            "type": "string",
+            "pattern": "^[0-9]+$|^>=?[0-9]+$"
+          },
+          "jdk": {
+            "type": "string",
+            "pattern": "^>=?1[7-9](\\.[0-9]+)?$"
+          },
+          "status": {
+            "enum": [
+              "tested",
+              "untested"
+            ]
+          },
+          "incompatible": {
+            "type": "boolean",
+            "default": false
+          },
+          "evidence": {
+            "type": "string",
+            "description": "Cellule de mesure / source quand status=tested."
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

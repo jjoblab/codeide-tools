@@ -1,0 +1,52 @@
+# Profils recommandés (ensembles de composants, résolution 12.2 côté app).
+# Un profil liste des exigences "<id>@<version>" ; le plan retient l'entrée de
+# revision la plus haute pour (id, version) dont l'arch est celle de l'appareil
+# ou any — une entrée preview est ignorée par l'app.
+
+default:
+  description: >-
+    Chaîne recommandée aujourd'hui : build-tools 35.0.2 (aapt2 lisible
+    jusqu'à compileSdk 37, aucune auto-installation avec AGP 8.13) +
+    plateforme 36 + cmdline-tools 12.0 (référence éprouvée).
+  components:
+    - build-tools@35.0.2
+    - platform-tools@35.0.2
+    - platform@android-36
+    - cmdline-tools@12.0
+
+minimal:
+  description: >-
+    Le strict minimum pour compiler : build-tools + plateforme. cmdline-tools
+    absent (confort/extras seulement, critical: false).
+  components:
+    - build-tools@35.0.2
+    - platform-tools@35.0.2
+    - platform@android-36
+
+full:
+  description: >-
+    Toutes les versions stables publiées — utiles pour les projets multi-
+    compileSdk et les tests.
+  components:
+    - build-tools@35.0.2
+    - build-tools@34.0.3
+    - build-tools@33.0.3
+    - platform-tools@35.0.2
+    - platform-tools@34.0.3
+    - platform-tools@33.0.3
+    - platform@android-37.2
+    - platform@android-36
+    - platform@android-35
+    - cmdline-tools@12.0
+    - cmdline-tools@17.0
+
+agp9:
+  description: >-
+    Profil de migration AGP 9.x : mêmes composants que default — voir
+    docs/COMPAT.md (stratégies build-tools 36 : auto-install AGP, pipeline
+    natif, ou rester en AGP 8.13).
+  components:
+    - build-tools@35.0.2
+    - platform-tools@35.0.2
+    - platform@android-37.2
+    - cmdline-tools@12.0

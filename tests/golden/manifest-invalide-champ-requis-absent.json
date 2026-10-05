@@ -1,0 +1,43 @@
+{
+  "compat": [
+    {
+      "aapt2": "1.0",
+      "agp": "8.13",
+      "buildTools": "1.0",
+      "compileSdk": "36",
+      "jdk": ">=17",
+      "status": "untested"
+    }
+  ],
+  "components": [
+    {
+      "arch": "any",
+      "channel": "stable",
+      "critical": true,
+      "id": "test-tools",
+      "installPath": "test-tools/1.0",
+      "requires": [],
+      "revision": "r1",
+      "size": 260,
+      "sources": [
+        {
+          "url": "https://example.invalid/a.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "test-tools/1.0/hello.txt",
+        "expect": "hello"
+      },
+      "version": "1.0"
+    }
+  ],
+  "generatedAt": "2026-10-05T12:00:00Z",
+  "profiles": {
+    "default": {
+      "components": [
+        "test-tools@1.0"
+      ]
+    }
+  },
+  "schemaVersion": 2
+}

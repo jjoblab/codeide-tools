@@ -1,0 +1,53 @@
+# Composant platform-tools (bionique) — reconditionné depuis Lzhiyong/android-sdk-tools
+# (le zip amont porte build-tools ET platform-tools ; la version suit le tag amont,
+# convention héritée de la v1 — ce n'est PAS la numérotation officielle Google des
+# platform-tools, documentée ici pour éviter toute confusion).
+id: platform-tools
+upstream: lzhiyong
+critical: true
+arch: [aarch64, arm, x86_64]
+license: Apache-2.0
+minAndroidApi: 30
+install-path: platform-tools
+requires: []
+content:
+  binaries: [adb, e2fsdroid, etc1tool, fastboot, hprof-conv, make_f2fs,
+              make_f2fs_casefold, mke2fs, sload_f2fs, sqlite3]
+  source-properties: |
+    Pkg.Desc=Android SDK Platform-Tools
+    Pkg.UserSrc=false
+    Pkg.Revision={version}
+verify:
+  cmd: platform-tools/adb --version
+  expect: "Android Debug Bridge"
+smoke:
+  "35.0.2":
+    aarch64: { status: ok, source: "archive v1 installée sur appareil par CodeIDE v0.51+ (ADR 0082) — binaires identiques ; présence suffit au build AGP (note 07 § 5)" }
+    arm:     { status: pending, reason: "jamais exécuté — smoke.yml requis" }
+    x86_64:  { status: pending, reason: "idem" }
+  "34.0.3":
+    aarch64: { status: pending, reason: "smoke.yml requis" }
+    arm:     { status: pending, reason: "idem" }
+    x86_64:  { status: pending, reason: "idem" }
+  "33.0.3":
+    aarch64: { status: pending, reason: "smoke.yml requis" }
+    arm:     { status: pending, reason: "idem" }
+    x86_64:  { status: pending, reason: "idem" }
+versions:
+  - version: "35.0.2"
+    revision: r1
+    notes: "accompagne build-tools 35.0.2 ; jamais exécuté par un build AGP (note 07 § 5)"
+  - version: "34.0.3"
+    revision: r1
+    notes: ""
+  - version: "33.0.3"
+    revision: r1
+    notes: ""
+v1:
+  section: platform_tools
+  legacy-url: https://github.com/jjoblab/codeide-tools/releases/download/v35.0.2/platform-tools-{version}-{arch}.tar.xz
+  legacy-sha256:
+    "35.0.2":
+      aarch64: 52371ea4a620ce7d26b51ae7898acf2f93f535bd7adbf06572f743fd0bd89940
+      arm: 9e41700afd519f9f06b10cca9cc9a252b46b50c285af13ac2cf8f54139cdf9f3
+      x86_64: 2657ac7cab57b57a6a131545d1fe10955fcd936ec57b3dc2bcacdea031ae927a

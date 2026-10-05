@@ -1,0 +1,37 @@
+# Composant cmdline-tools — pointeur DIRECT vers dl.google.com (pas de miroir, ADR 0005).
+# 100 % Java (scripts sh + jars), arch any. Revs >= 19 exclues : binaire natif
+# bin/android x86_64 seulement (note 03). Les fichiers licenses/ ne sont PAS livrés
+# (12.5) : l'app les écrit après acceptation explicite.
+id: cmdline-tools
+upstream: google
+critical: false
+arch: [any]
+license: android-sdk-license
+install-path: cmdline-tools/latest
+requires: ["jdk>=17"]
+# Le zip Google a pour racine cmdline-tools/ : l'installateur extrait puis déplace
+# la racine vers installPath (champ additif archiveRoot, ignoré par les clients 2.x
+# qui ne l'utilisent pas — voir ADR 0001).
+archive-root: cmdline-tools
+verify:
+  cmd: cmdline-tools/latest/bin/sdkmanager --version
+  expect: "^[0-9]+\\.[0-9]+$"
+smoke:
+  "12.0":
+    any: { status: ok, source: "mesuré hôte JDK 17/21 (note 03) + production CodeIDE v0.48.0 (ADR 0082)" }
+  "17.0":
+    any: { status: pending, reason: "mesuré hôte JDK 21 (note 03) ; exécution sur appareil à confirmer (smoke.yml)" }
+versions:
+  - version: "12.0"
+    revision: r1
+    notes: "référence éprouvée, épinglée par CodeIDE v0.48.0 ; apksigner/avdmanager/lint sans d8/r8"
+  - version: "17.0"
+    revision: r1
+    notes: "dernière rev 100 % Java ; ajoute d8 et r8 ; non utilisable avant confirmation appareil"
+v1:
+  section: cmdline_tools
+  # La release « sdk » v1 existante (immuable) reste référencée par le manifeste v1.
+  legacy-url: https://github.com/jjoblab/codeide-tools/releases/download/sdk/cmdline-tools.tar.xz
+  legacy-sha256:
+    "12.0":
+      any: 8b2790ab34af16f6b9bf46367216f7616cf0783f43bccf44adfe613423b0d45f

@@ -1,0 +1,93 @@
+# Matrice de compatibilité AGP <-> build-tools <-> aapt2 <-> compileSdk <-> JDK.
+# Mesures hôte du 2026-10-05 (note de recherche 02, scripts r2-matrice2.sh / r2-cellules.sh).
+# status: tested = mesuré sur hôte (cellule citée) ; untested = déduit, à confirmer.
+# COMPAT.md est GÉNÉRÉ depuis ce fichier (build/gen-manifest.py).
+
+entries:
+  - agp: "9.4.1"
+    buildTools: "36.0.0"
+    aapt2: "36.0.0"
+    compileSdk: "37"
+    jdk: ">=17"
+    status: untested
+    note: "défaut AGP 9.4.1 ; bionic 36.x inexistant chez Lzhiyong (ADR 0002/0003)"
+
+  - agp: "9.4.1"
+    buildTools: "35.0.2"
+    aapt2: "35.0.2"
+    compileSdk: "36"
+    jdk: ">=17"
+    status: tested
+    evidence: "hôte r2-matrice2 (AGP 9.4.1 x bt 35.0.1, apk OK, override aapt2) ; bionique équivalent 35.0.2 — appareil : smoke"
+    note: "via android.aapt2FromMavenOverride ; AGP auto-installe build-tools 36 x86_64 (63 Mio morts) sauf si 36 présent"
+
+  - agp: "9.4.1"
+    buildTools: "35.0.2"
+    aapt2: "35.0.2"
+    compileSdk: "37"
+    jdk: ">=17"
+    status: tested
+    evidence: "hôte r2-cellules (AGP 9.4.1 x bt 35.0.1 x cs 37, apk OK)"
+    note: "idem — compileSdk 37 (android-37.2) lisible par aapt2 35"
+
+  - agp: "9.4.1"
+    buildTools: "34.0.3"
+    aapt2: "34.0.3"
+    compileSdk: "36"
+    jdk: ">=17"
+    status: tested
+    evidence: "hôte r2-matrice2 (AGP 9.4.1 x bt 34.0.0 équivalent, apk OK via override)"
+    note: "aapt2 34 lit les tables 35+ ; auto-install AGP de bt 36 x86_64 en sus"
+
+  - agp: "9.4.1"
+    buildTools: "33.0.3"
+    aapt2: "33.0.3"
+    compileSdk: ">=35"
+    jdk: ">=17"
+    status: tested
+    incompatible: true
+    evidence: "hôte : aapt2 33 ne lit pas android.jar >= 35 (LoadedArsc.cpp, note 02 découverte 2)"
+    note: "INCOMPATIBLE compileSdk >= 35"
+
+  - agp: "9.0.0"
+    buildTools: "35.0.2"
+    aapt2: "35.0.2"
+    compileSdk: "36"
+    jdk: ">=17"
+    status: tested
+    evidence: "hôte r2-matrice2 (AGP 9.0.0 x bt 35.0.1 équivalent)"
+    note: "min bt 36.0.0 constatée aussi sur 9.0.0"
+
+  - agp: "8.13.0"
+    buildTools: "35.0.2"
+    aapt2: "35.0.2"
+    compileSdk: "36"
+    jdk: ">=17"
+    status: tested
+    evidence: "hôte r2-matrice2 (AGP 8.13.0 x bt 35.0.1 équivalent, AUCUNE auto-installation — min 35.0.0 satisfaite)"
+    note: "combinaison recommandée : aucune auto-installation, aapt2 du SDK utilisée"
+
+  - agp: "8.13.0"
+    buildTools: "34.0.3"
+    aapt2: "34.0.3"
+    compileSdk: "35"
+    jdk: ">=17"
+    status: tested
+    evidence: "hôte r2-cellules (AGP 8.13.0 x bt 34.0.0 équivalent x cs 35, apk OK)"
+    note: "bt 34 < min 35.0.0 : AGP auto-installe bt 35 en sus (demande ignorée)"
+
+  - agp: "8.0.0"
+    buildTools: "33.0.3"
+    aapt2: "33.0.3"
+    compileSdk: "34"
+    jdk: ">=17"
+    status: untested
+    note: "min bt 33.0.1 : 33.0.3 utilisée nativement (aucune auto-installation constatée) ; compileSdk <= 34 (aapt2 33) — plateformes <= 34 hors catalogue"
+
+  - agp: "8.x"
+    buildTools: "35.0.2"
+    aapt2: "35.0.2"
+    compileSdk: "36"
+    jdk: ">=17"
+    status: untested
+    note: "AGP 8.1-8.12 : mins bt déduites (34.0.0 pour 8.3+) — à confirmer en CI"

@@ -1,0 +1,67 @@
+{
+  "compat": [
+    {
+      "aapt2": "1.0",
+      "agp": "9.4.1",
+      "buildTools": "1.0",
+      "compileSdk": "36",
+      "jdk": ">=17",
+      "status": "tested"
+    }
+  ],
+  "components": [
+    {
+      "arch": "any",
+      "channel": "stable",
+      "critical": true,
+      "id": "test-tools",
+      "installPath": "test-tools/1.0",
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r1",
+      "sha256": "5a647108e34e72c01913af1bd6528764d585da2576e34bb7523a9c67a1f6515a",
+      "size": 260,
+      "sources": [
+        {
+          "url": "https://example.invalid/test-tools-1.0-r1-any.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "test-tools/1.0/run.sh",
+        "expect": "test-tools 1.0"
+      },
+      "version": "1.0"
+    },
+    {
+      "arch": "any",
+      "channel": "preview",
+      "critical": true,
+      "id": "test-tools",
+      "installPath": "test-tools/2.0",
+      "requires": [],
+      "revision": "r1",
+      "sha256": "529a5c54a0b8e40d1a12b16db40bf67b0baf0801b0bf31d713550f4deab7692b",
+      "size": 212,
+      "sources": [
+        {
+          "url": "https://example.invalid/test-tools-2.0-r1-any.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "test-tools/2.0/hello.txt",
+        "expect": "hello"
+      },
+      "version": "2.0"
+    }
+  ],
+  "generatedAt": "2026-10-05T12:00:00Z",
+  "profiles": {
+    "default": {
+      "components": [
+        "test-tools@1.0"
+      ]
+    }
+  },
+  "schemaVersion": 2
+}

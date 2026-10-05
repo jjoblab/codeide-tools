@@ -1,0 +1,61 @@
+# Composant build-tools (bionique) — reconditionné depuis Lzhiyong/android-sdk-tools.
+# Archive v2 : <id>-<version>-r<rev>-<arch>.tar.xz, racine = racine du SDK,
+# contenu = build-tools/<version>/ exactement (12.3).
+id: build-tools
+upstream: lzhiyong
+critical: true
+arch: [aarch64, arm, x86_64]
+license: Apache-2.0
+minAndroidApi: 30
+install-path: build-tools/{version}
+requires: ["jdk>=17"]
+# Contenu de l'archive : les 6 binaires natifs du zip amont + core-lambda-stubs.jar
+# (jar AOSP Apache-2.0, exigé par la validation BuildToolInfo d'AGP — note 07 § 2,
+# jamais exécuté) + NOTICE.txt + source.properties (Pkg.Revision = version).
+content:
+  binaries: [aapt, aapt2, aidl, dexdump, split-select, zipalign]
+  lambda-stubs: build/vendor/core-lambda-stubs/{version}.jar
+  source-properties: |
+    Pkg.Desc=Android SDK Build-Tools {version}
+    Pkg.UserSrc=false
+    Pkg.Revision={version}
+verify:
+  cmd: build-tools/{version}/aapt2 version
+  expect: "Android Asset Packaging Tool"
+# Statut de fumée (ADR 0009) : une entrée 'ok' => channel stable ; sinon preview.
+# aarch64/35.0.2 : mêmes octets binaires que la v1 consommée en production par
+# CodeIDE v0.51+ (ADR 0082 du dépôt CodeIDE) ; l'archive v2 n'ajoute que des
+# métadonnées (jar stub, source.properties, NOTICE) — smoke CI à confirmer.
+smoke:
+  "35.0.2":
+    aarch64: { status: ok, source: "CodeIDE v0.51.0+ sur appareil (ADR 0082, dépôt CodeIDE) — binaires identiques" }
+    arm:     { status: pending, reason: "jamais exécuté (amont non testé, hôte x86_64) — smoke.yml requis" }
+    x86_64:  { status: pending, reason: "jamais exécuté — smoke.yml requis" }
+  "34.0.3":
+    aarch64: { status: pending, reason: "pas d'évidence d'exécution — smoke.yml requis" }
+    arm:     { status: pending, reason: "idem" }
+    x86_64:  { status: pending, reason: "idem" }
+  "33.0.3":
+    aarch64: { status: pending, reason: "pas d'évidence d'exécution — smoke.yml requis" }
+    arm:     { status: pending, reason: "idem" }
+    x86_64:  { status: pending, reason: "idem" }
+versions:
+  - version: "35.0.2"
+    revision: r1
+    notes: "défaut AGP 8.13 sans auto-installation (>= 35.0.0) ; aapt2 lisible jusqu'à compileSdk 37 (R2)"
+  - version: "34.0.3"
+    revision: r1
+    notes: "compileSdk <= 37 via override avec AGP 9.x ; aapt2 34 lit les plateformes 35+ (R2)"
+  - version: "33.0.3"
+    revision: r1
+    notes: "compileSdk <= 34 uniquement (aapt2 33 ne lit pas les tables 35+) — R2"
+# Rétrocompatibilité v1 : URLs et sommes de la release v35.0.2 EXISTANTE (immuable).
+# Le manifeste v1 généré pointe là, inchangé (acceptation : anciennes apps).
+v1:
+  section: build_tools
+  legacy-url: https://github.com/jjoblab/codeide-tools/releases/download/v35.0.2/build-tools-{version}-{arch}.tar.xz
+  legacy-sha256:
+    "35.0.2":
+      aarch64: e79e03dd9d0ff5af2784cf14a92ba87baea578433551db9fba1e183a39681167
+      arm: 53a320dd377aa90c1d68cefe69f8afe221908ac28f00de62a292362981dcf78c
+      x86_64: f85b5c227504b905175247d949280c8ff4cedd85bfc71957fb8b5e07988674c6

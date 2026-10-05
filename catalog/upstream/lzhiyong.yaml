@@ -1,0 +1,21 @@
+# Amont Lzhiyong/android-sdk-tools — épinglage par tag et architecture.
+# Vérifié le 2026-10-05 (flux releases.atom + expanded_assets, téléchargement et SHA-256).
+# Chaque zip contient build-tools/ ET platform-tools/ pour l'architecture (binaires statiques,
+# ELF "for Android 30", NDK r27b — note de recherche 01).
+# Archive de base des releases amont : https://github.com/Lzhiyong/android-sdk-tools/releases/download/<tag>/<zip>
+base-url: https://github.com/Lzhiyong/android-sdk-tools/releases/download
+repo: Lzhiyong/android-sdk-tools
+license: Apache-2.0
+pins:
+  "33.0.3":
+    aarch64: { sha256: 15aa3efa6609ae83a0122147f9940a96583c287922dcce84bff2b19d0b395898, size: 23371449 }
+    arm:     { sha256: a85611c60d701406205a76efa5e77c2e7cc97c55a108571a9ffda8291b787624, size: 20570932 }
+    x86_64:  { sha256: 5dfc1b909fb47a3e947acceaa8c6875365c9ba3553f288deb4fe34e8090bc9fa, size: 24618130 }
+  "34.0.3":
+    aarch64: { sha256: de81621cf4502ef4f454be3e8ddf8a40117476212c9680e37ef95925de93ecca, size: 19314650 }
+    arm:     { sha256: 50f21f77fcc098590dce9db76655f3e1cceece9a77b7fcfe773d4ec63022c945, size: 16156106 }
+    x86_64:  { sha256: 56dee37cbcce38066be88affa37646a3735b02f52698a0b8aa8b31935031dc77, size: 21386863 }
+  "35.0.2":
+    aarch64: { sha256: db1cea2c4454d5f9c5a802646b2d1cf560b4ee7badbe23e51ab8e1881bb50fc2, size: 14401170 }
+    arm:     { sha256: 17b27ad0136b8d1c3ab67be24b3ab9a81c412c39fdc4112b622d900f90b02983, size: 12354195 }
+    x86_64:  { sha256: 30110518265f0f6e8fb18bcce9ef29a7f1caf507e8d6a37ae92d26b11e44bf07, size: 14196861 }

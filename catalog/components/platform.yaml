@@ -1,0 +1,39 @@
+# Composant platform (android.jar & co) — pointeur DIRECT vers dl.google.com
+# (pas de miroir, ADR 0005 : « packaged APIs » couverts par la clause 3.4).
+# Pur Java : composant any, aucune dépendance d'architecture.
+id: platform
+upstream: google
+critical: true
+arch: [any]
+license: android-sdk-license
+install-path: platforms/{version}
+requires: []
+# Racine du zip Google (ex. android-36) != installPath (platforms/android-36) :
+# champ additif archiveRoot — l'installateur déplace la racine extraite vers
+# installPath (ADR 0001). Le contenu du zip Google suffit à AGP (pas de
+# package.xml — note 07 § 3).
+verify:
+  cmd: platforms/{version}/android.jar
+  expect: "^$"   # présence (le jar n'est pas exécuté) : la vérification profonde
+                 # contrôle l'entrée du zip et la cohérence source.properties
+smoke:
+  "android-35":
+    any: { status: ok, source: "build AGP 8.13 hôte avec la plateforme réelle (note 02, cellule cs=35)" }
+  "android-36":
+    any: { status: ok, source: "25+ builds AGP 8/9 hôte avec la plateforme réelle (notes 02/07)" }
+  "android-37.2":
+    any: { status: ok, source: "builds AGP 9.4.1 hôte compileSdk 37 (note 02, cellules cs=37)" }
+versions:
+  - version: "android-35"
+    revision: r1
+    notes: "compileSdk 35 (aapt2 >= 34 requis — R2)"
+  - version: "android-36"
+    revision: r1
+    notes: "compileSdk 36, défaut du profil default"
+  - version: "android-37.2"
+    revision: r1
+    notes: "compileSdk 37 — la chaîne CodeIDE documente platforms;android-37.2 (ENVIRONNEMENT.md)"
+v1:
+  # Aucune plateforme n'était publiée en v1 : section absente du manifeste v1
+  # généré (les entrées android_sdk restent null — parité exacte avec l'existant).
+  section: null
