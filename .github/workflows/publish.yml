@@ -35,50 +35,37 @@ jobs:
 
   smoke:
     needs: build
-    runs-on: ubuntu-24.04-arm   # arm64 : exécute les binaires bioniques aarch64
-    container:
-      image: termux/termux-docker:latest   # bionic aarch64 — piste du prompt § 7
-      options: --user root
+    runs-on: ubuntu-24.04-arm   # arm64 : le conteneur bionic aarch64 s'exécute nativement
     steps:
-      - name: Dépendances Termux
-        run: |
-          # termux-docker démarre avec un utilisateur non root : on utilise
-          # termux-info puis pkg. (À vérifier au premier run — piste documentée
-          # dans l'ADR 0009 ; en cas d'échec d'image, la version reste preview.)
-          command -v pkg || true
-          ls /data/data/com.termux/files/usr/bin/ 2>/dev/null | head
-          export PATH=/data/data/com.termux/files/usr/bin:$PATH
-          pkg install -y curl jq tar xz python
-      - name: Récupération du dépôt et des artefacts
-        uses: actions/checkout@v4
+      # Checkout et artefacts sur l'HÔTE glibc : les actions GitHub (node20)
+      # ne peuvent pas s'exécuter dans un conteneur bionic.
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        with: { path: dist-artifacts, pattern: dist-* , merge-multiple: true }
-      - name: Smoke test — installation + verify --deep (bionic aarch64)
-        env:
-          TERMUX_PATH: /data/data/com.termux/files/usr
+        with: { path: dist, pattern: dist-*, merge-multiple: true }
+
+      - name: Banc bionic — manifeste de test + crochet de téléchargement
         run: |
-          export PATH=$TERMUX_PATH/bin:$PATH
-          # Manifeste local de test : composants construits servis par le
-          # crochet (téléchargement réel testé ensuite par smoke.yml).
+          set -eu
+          mkdir -p smoke/fetch smoke/tmp smoke/home
+          cp dist/*.tar.xz smoke/fetch/
           python3 - <<'PY'
-          import json, pathlib, sys
-          # Construit un manifeste minimal pointant vers les artefacts du run.
+          import json, re
+          # Manifeste local de test : composants construits servis par le crochet
+          # (le téléchargement réel via GitHub Releases est testé par smoke.yml).
+          # Clé artifacts.json = <id>-<version>-r<rev>-<arch>.
           art = json.load(open("build/artifacts.json"))
           comps = []
-          for key, e in art.items():
-              cid, version, rev, arch = key.rsplit("-", 1)[0].rsplit("-", 2)[0], None, None, key.rsplit("-", 1)[1]
-              cid, version, rev = key.split("-")[0], None, None
-              # clé = <id>-<version>-r<rev>-<arch>
-              parts = key.rsplit("-", 3) if False else None
-              import re
+          for key, e in sorted(art.items()):
               m = re.match(r"([a-z-]+)-([0-9.]+)-(r[0-9]+)-(aarch64|arm|x86_64)", key)
-              if not m: continue
+              if not m:
+                  continue
               comps.append({
                   "id": m.group(1), "version": m.group(2), "revision": m.group(3),
                   "arch": m.group(4), "channel": "stable", "critical": True,
                   "sources": [{"url": "https://example.invalid/" + e["archive"]}],
                   "sha256": e["sha256"], "size": e["size"],
-                  "installPath": (f"build-tools/{m.group(2)}" if m.group(1) == "build-tools" else "platform-tools"),
+                  "installPath": (f"build-tools/{m.group(2)}" if m.group(1) == "build-tools"
+                                  else "platform-tools"),
                   "requires": ["jdk>=17"],
                   "verify": ({"cmd": f"build-tools/{m.group(2)}/aapt2 version",
                               "expect": "Android Asset Packaging Tool"}
@@ -87,22 +74,44 @@ jobs:
               })
           json.dump({"schemaVersion": 2, "generatedAt": "2026-01-01T00:00:00Z",
                      "components": comps, "profiles": {}, "compat": []},
-                    open("/tmp/smoke-manifest.json", "w"), indent=2)
+                    open("smoke/smoke-manifest.json", "w"), indent=2)
+          print(f"manifeste de test : {len(comps)} entrées")
           PY
-          mkdir -p /tmp/fetch
-          cp dist-artifacts/*.tar.xz /tmp/fetch/ 2>/dev/null || cp dist/*.tar.xz /tmp/fetch/
-          cat > /tmp/fake-fetch <<'EOF'
-          #!/data/data/com.termux/files/usr/bin/sh
-          out=''
-          while [ $# -gt 0 ]; do case $1 in -o) out=$2; shift 2 ;; *) url=$1; shift ;; esac; done
-          cp "/tmp/fetch/$(basename "$url")" "$out"
+          cat > smoke/fake-fetch <<'EOF'
+          #!/usr/bin/env sh
+          out=; url=
+          while [ $# -gt 0 ]; do
+            case $1 in
+              -o) out=$2; shift 2 ;;
+              *) url=$1; shift ;;
+            esac
+          done
+          cp "$(dirname "$0")/fetch/$(basename "$url")" "$out"
           EOF
-          chmod +x /tmp/fake-fetch
-          # Exécution RÉELLE de chaque binaire sur bionic (aapt2 version, adb --version) :
-          sh cli/codeide-sdk install $(echo "${{ inputs.components }}" | tr ',' ' ') \
-            --root "$HOME/smoke-sdk" || exit 5
-          sh cli/codeide-sdk verify --deep --root "$HOME/smoke-sdk" || exit 5
-          echo "SMOKE OK (bionic aarch64)"
+          chmod +x smoke/fake-fetch
+
+      - name: Smoke — install + verify --deep sur bionic aarch64 (termux-docker)
+        env:
+          SPECS: ${{ inputs.components }}
+        run: |
+          set -eu
+          docker run --rm \
+            --entrypoint /data/data/com.termux/files/usr/bin/bash \
+            -v "$PWD:/repo" -v "$PWD/smoke:/smoke" -e SPECS \
+            termux/termux-docker:latest -exc '
+              export PATH=/data/data/com.termux/files/usr/bin:$PATH
+              export HOME=/smoke/home TMPDIR=/smoke/tmp
+              export CODEIDE_TOOLS_MANIFEST=/smoke/smoke-manifest.json
+              export CODEIDE_FETCH_CMD=/smoke/fake-fetch
+              pkg update -y >/dev/null 2>&1 || true
+              pkg install -y jq coreutils tar xz-utils 2>/dev/null || pkg install -y jq coreutils tar xz
+              cd /repo
+              # Exécution RÉELLE de chaque binaire sur bionic (aapt2 version, adb --version) :
+              sh cli/codeide-sdk install $(echo "$SPECS" | tr "," " ") \
+                --arch aarch64 --root /smoke/sdk || exit 5
+              sh cli/codeide-sdk verify --deep --root /smoke/sdk || exit 5
+              echo "SMOKE OK (bionic aarch64)"
+            '
 
   publish:
     needs: [build, smoke]
