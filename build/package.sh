@@ -62,6 +62,12 @@ export SOURCE_DATE_EPOCH
 XZ_LEVEL=6
 
 mkdir -p "$DIST" "$CACHE"
+# --dist/--cache peuvent être relatifs : on absolutise AVANT tout cd —
+# make_archive redirige sa sortie depuis un sous-shell cd-é dans le staging
+# temporaire (premier échec CI réel : « dist/x.tar.xz : No such file or
+# directory » alors que dist/ existait à la racine).
+DIST="$(cd "$DIST" && pwd)"
+CACHE="$(cd "$CACHE" && pwd)"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/codeide-package.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
