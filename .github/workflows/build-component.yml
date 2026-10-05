@@ -87,7 +87,6 @@ jobs:
             dist/*.tar.xz
             dist/*.sha256
             dist/*/provenance.json
-            build/artifacts.json
           retention-days: 7
 
       - name: Manifeste à blanc (validation du schéma)
