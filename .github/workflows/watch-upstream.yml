@@ -1,0 +1,104 @@
+name: Veille amont
+
+# Hebdomadaire : compare les releases amont (Lzhiyong atom, dépôt Google
+# repository2-3.xml) au catalogue et ouvre une issue « nouvelle version
+# disponible » avec le diff pré-rempli. AUCUNE publication automatique :
+# l'ajout d'une version reste une PR (catalogue = code review, ADR 0009).
+# Veille cmdline-tools : une rev >= 19 ne sera cataloguée que si bin/android
+# est ABSENT du zip (garde héritée de package-sdk.sh v1, note 03).
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # chaque lundi 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python3 -m pip install --quiet pyyaml requests
+
+      - name: Comparer amonts et catalogue
+        id: diff
+        run: |
+          python3 - <<'PY' > upstream-diff.md
+          import pathlib, re, requests, yaml
+
+          cat = pathlib.Path("catalog")
+          lz_catalog = set()
+          for f in (cat / "components").glob("*.yaml"):
+              for v in yaml.safe_load(f.read_text()).get("versions", []):
+                  lz_catalog.add(v["version"])
+
+          # --- Lzhiyong (flux atom, anonyme) ---
+          atom = requests.get(
+              "https://github.com/Lzhiyong/android-sdk-tools/releases.atom", timeout=30)
+          lz_up = set(re.findall(r"<title>(v?[0-9.]+)</title>", atom.text))
+          lz_up = {v.lstrip("v") for v in lz_up}
+
+          # --- Google build-tools + plateformes + cmdline-tools ---
+          xml = requests.get(
+              "https://dl.google.com/android/repository/repository2-3.xml", timeout=30).text
+          bt_up = set(re.findall(
+              r'path="build-tools;([0-9.]+)"', xml)) - set(re.findall(
+              r'path="build-tools;([0-9.\-a-z]+)-(?:rc|alpha|beta)[0-9]*"', xml))
+          plat_up = set(re.findall(r'path="platforms;android-([0-9.]+)"', xml))
+          cmd_up = set(re.findall(r'path="cmdline-tools;([0-9.]+)"', xml))
+
+          g_catalog = {}
+          for f in (cat / "components").glob("*.yaml"):
+              c = yaml.safe_load(f.read_text())
+              g_catalog[c["id"]] = {v["version"] for v in c.get("versions", [])}
+
+          def report(name, up, known):
+              new = sorted(up - known, key=lambda s: [int(p) if p.isdigit() else p
+                       for p in re.split(r"[.\-]", s)])
+              if new:
+                  print(f"### {name} — nouvelles versions amont\n")
+                  for v in new:
+                      print(f"- `{v}`")
+                  print()
+
+          report("Lzhiyong/android-sdk-tools (build-tools/platform-tools)", lz_up, lz_catalog)
+          report("Google build-tools (binaires x86_64 : pipeline natif requis)", bt_up, g_catalog.get("build-tools", set()))
+          report("Google plateformes (pointeur direct)", plat_up, g_catalog.get("platform", set()))
+          report("Google cmdline-tools (rev >= 19 : vérifier ABSENCE de bin/android)", cmd_up, g_catalog.get("cmdline-tools", set()))
+          PY
+          cat upstream-diff.md
+          if [ -s upstream-diff.md ]; then
+            echo "changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ouvrir une issue si des versions nouvelles existent
+        if: steps.diff.outputs.changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('upstream-diff.md', 'utf8');
+            const title = 'Veille amont : nouvelles versions disponibles';
+            // Une seule issue ouverte à la fois : on complète la dernière.
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'veille-amont'
+            });
+            if (issues.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issues.data[0].number, body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['veille-amont']
+              });
+            }

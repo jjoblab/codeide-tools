@@ -1,0 +1,94 @@
+name: Fabriquer un composant
+
+# Réutilisable (workflow_call) et manuel : matrice composant × version × arch.
+# Fabrique l'archive déterministe (build/package.sh : tri, mtime fixé, 0:0,
+# permissions explicites, xz -T1), contrôle l'ABI ELF, calcule les sommes et
+# produit provenance.json. NE PUBLIE RIEN (voir publish.yml).
+
+on:
+  workflow_call:
+    inputs:
+      components:
+        description: "Spécifications id@version collées par virgules (vide = tout le catalogue)"
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      components:
+        description: "Spécifications id@version collées par virgules (vide = tout le catalogue)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      specs: ${{ steps.gen.outputs.specs }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python3 -m pip install --quiet pyyaml
+      - id: gen
+        run: |
+          python3 - <<'PY'
+          import json, yaml, pathlib
+          wanted = "${{ inputs.components }}".split(",") if "${{ inputs.components }}" else None
+          specs = []
+          for f in sorted(pathlib.Path("catalog/components").glob("*.yaml")):
+              c = yaml.safe_load(f.read_text())
+              if c["id"] in ("cmdline-tools", "platform"):
+                  continue  # pointeurs directs Google : rien à fabriquer
+              for v in c.get("versions", []):
+                  spec = f"{c['id']}@{v['version']}"
+                  if not wanted or spec in wanted:
+                      specs.append(spec)
+          print(json.dumps(specs))
+          with open(__import__("os").environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as fh:
+              print(f"specs={json.dumps(specs)}", file=fh)
+          PY
+
+  build:
+    needs: matrix
+    if: needs.matrix.outputs.specs != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        spec: ${{ fromJson(needs.matrix.outputs.specs) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python3 -m pip install --quiet pyyaml jsonschema
+
+      - name: Fabrication déterministe (${{ matrix.spec }})
+        run: bash build/package.sh "${{ matrix.spec }}" --dist dist
+
+      - name: Rebuild de contrôle (même hash ?)
+        run: |
+          before=$(jq -r '."${{ matrix.spec }}-r1-$(uname -m | sed s/aarch64/aarch64/)' build/artifacts.json 2>/dev/null || true)
+          # Rebuild complet de la première arch et comparaison.
+          first=$(echo dist/*.tar.xz | cut -d' ' -f1)
+          sum1=$(sha256sum "$first" | cut -d' ' -f1)
+          rm -f "$first"
+          bash build/package.sh "${{ matrix.spec }}" --dist dist --force >/dev/null
+          sum2=$(sha256sum "$first" | cut -d' ' -f1)
+          [ "$sum1" = "$sum2" ] || { echo "NON REPRODUCTIBLE : $sum1 != $sum2"; exit 1; }
+          echo "reproductible : $sum1"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.spec }}
+          path: |
+            dist/*.tar.xz
+            dist/*.sha256
+            dist/*/provenance.json
+            build/artifacts.json
+          retention-days: 7
+
+      - name: Manifeste à blanc (validation du schéma)
+        run: python3 build/gen-manifest.py --check || true

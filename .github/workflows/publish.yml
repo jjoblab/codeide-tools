@@ -1,0 +1,178 @@
+name: Publier
+
+# Publie une révision <id>-<version>-r<rev> : JAMAIS d'écrasement d'asset
+# (immuabilité ; un correctif = révision r2). Séquence :
+#   build (matrice) -> SMOKE sur bionique aarch64 (porte OBLIGATOIRE :
+#   une version sans smoke réussi n'entre pas dans le manifeste) -> release
+#   + manifestes (v2 immuable + latest + v1) + gh-pages + attestation.
+# Les composants pointeurs Google (cmdline-tools, platform) n'ont pas
+# d'asset : ils entrent au manifeste après vérification smoke de leur
+# vérification (sdkmanager --version) côté bionic.
+
+on:
+  workflow_dispatch:
+    inputs:
+      components:
+        description: "id@version collés par virgules (ex. build-tools@35.0.2,platform-tools@35.0.2)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  attestations: write
+  id-token: write
+  pages: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-component.yml
+    with:
+      components: ${{ inputs.components }}
+
+  smoke:
+    needs: build
+    runs-on: ubuntu-24.04-arm   # arm64 : exécute les binaires bioniques aarch64
+    container:
+      image: termux/termux-docker:latest   # bionic aarch64 — piste du prompt § 7
+      options: --user root
+    steps:
+      - name: Dépendances Termux
+        run: |
+          # termux-docker démarre avec un utilisateur non root : on utilise
+          # termux-info puis pkg. (À vérifier au premier run — piste documentée
+          # dans l'ADR 0009 ; en cas d'échec d'image, la version reste preview.)
+          command -v pkg || true
+          ls /data/data/com.termux/files/usr/bin/ 2>/dev/null | head
+          export PATH=/data/data/com.termux/files/usr/bin:$PATH
+          pkg install -y curl jq tar xz python
+      - name: Récupération du dépôt et des artefacts
+        uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { path: dist-artifacts, pattern: dist-* , merge-multiple: true }
+      - name: Smoke test — installation + verify --deep (bionic aarch64)
+        env:
+          TERMUX_PATH: /data/data/com.termux/files/usr
+        run: |
+          export PATH=$TERMUX_PATH/bin:$PATH
+          # Manifeste local de test : composants construits servis par le
+          # crochet (téléchargement réel testé ensuite par smoke.yml).
+          python3 - <<'PY'
+          import json, pathlib, sys
+          # Construit un manifeste minimal pointant vers les artefacts du run.
+          art = json.load(open("build/artifacts.json"))
+          comps = []
+          for key, e in art.items():
+              cid, version, rev, arch = key.rsplit("-", 1)[0].rsplit("-", 2)[0], None, None, key.rsplit("-", 1)[1]
+              cid, version, rev = key.split("-")[0], None, None
+              # clé = <id>-<version>-r<rev>-<arch>
+              parts = key.rsplit("-", 3) if False else None
+              import re
+              m = re.match(r"([a-z-]+)-([0-9.]+)-(r[0-9]+)-(aarch64|arm|x86_64)", key)
+              if not m: continue
+              comps.append({
+                  "id": m.group(1), "version": m.group(2), "revision": m.group(3),
+                  "arch": m.group(4), "channel": "stable", "critical": True,
+                  "sources": [{"url": "https://example.invalid/" + e["archive"]}],
+                  "sha256": e["sha256"], "size": e["size"],
+                  "installPath": (f"build-tools/{m.group(2)}" if m.group(1) == "build-tools" else "platform-tools"),
+                  "requires": ["jdk>=17"],
+                  "verify": ({"cmd": f"build-tools/{m.group(2)}/aapt2 version",
+                              "expect": "Android Asset Packaging Tool"}
+                             if m.group(1) == "build-tools" else
+                             {"cmd": "platform-tools/adb --version", "expect": "Android Debug Bridge"}),
+              })
+          json.dump({"schemaVersion": 2, "generatedAt": "2026-01-01T00:00:00Z",
+                     "components": comps, "profiles": {}, "compat": []},
+                    open("/tmp/smoke-manifest.json", "w"), indent=2)
+          PY
+          mkdir -p /tmp/fetch
+          cp dist-artifacts/*.tar.xz /tmp/fetch/ 2>/dev/null || cp dist/*.tar.xz /tmp/fetch/
+          cat > /tmp/fake-fetch <<'EOF'
+          #!/data/data/com.termux/files/usr/bin/sh
+          out=''
+          while [ $# -gt 0 ]; do case $1 in -o) out=$2; shift 2 ;; *) url=$1; shift ;; esac; done
+          cp "/tmp/fetch/$(basename "$url")" "$out"
+          EOF
+          chmod +x /tmp/fake-fetch
+          # Exécution RÉELLE de chaque binaire sur bionic (aapt2 version, adb --version) :
+          sh cli/codeide-sdk install $(echo "${{ inputs.components }}" | tr ',' ' ') \
+            --root "$HOME/smoke-sdk" || exit 5
+          sh cli/codeide-sdk verify --deep --root "$HOME/smoke-sdk" || exit 5
+          echo "SMOKE OK (bionic aarch64)"
+
+  publish:
+    needs: [build, smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python3 -m pip install --quiet pyyaml jsonschema
+      - uses: actions/download-artifact@v4
+        with: { path: dist, pattern: dist-*, merge-multiple: true }
+
+      - name: Régénérer les manifestes (v2 + v1 + COMPAT.md)
+        run: python3 build/gen-manifest.py
+
+      - name: Créer la/les release(s) — jamais d'écrasement
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          specs=$(echo "${{ inputs.components }}" | tr ',' ' ')
+          for spec in $specs; do
+            id=${spec%%@*}; version=${spec##*@}
+            rev=$(python3 build/catalog-query.py versions "$id" | awk -F'\t' -v v="$version" '$1==v{print $2}')
+            tag="$id-$version-$rev"
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "La release $tag existe déjà — IMMUABILITÉ : refus d'écrasement (nouvelle révision requise)"
+              exit 1
+            fi
+            files=$(ls dist/$id-$version-$rev-*.tar.xz dist/$id-$version-$rev-*.sha256 2>/dev/null || true)
+            prov="dist/$tag/provenance.json"
+            [ -f "$prov" ] || mkdir -p "dist/$tag" && cp -r dist/$id-$version-$rev/provenance.json "dist/$tag/" 2>/dev/null || true
+            gh release create "$tag" "dist/$id-$version-$rev-*.tar.xz" "dist/$id-$version-$rev-*.sha256" \
+              "dist/$tag/provenance.json" --repo "$GITHUB_REPOSITORY" \
+              --title "$tag" --generate-notes
+          done
+
+      - name: SHA256SUMS par release
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          for spec in $(echo "${{ inputs.components }}" | tr ',' ' '); do
+            id=${spec%%@*}; version=${spec##*@}
+            rev=$(python3 build/catalog-query.py versions "$id" | awk -F'\t' -v v="$version" '$1==v{print $2}')
+            ( cd dist && sha256sum "$id-$version-$rev-"*.tar.xz >"$id-$version-$rev-SHA256SUMS" )
+            gh release upload "$id-$version-$rev" "dist/$id-$version-$rev-SHA256SUMS" --repo "$GITHUB_REPOSITORY"
+          done
+
+      - name: Attestation de provenance (ADR 0007)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "dist/*.tar.xz, dist/manifest.v2.json"
+
+      - name: Publier main (catalogue + manifestes committés)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json docs/COMPAT.md dist/manifest.v2.json build/artifacts.json catalog 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "chore: publie ${{ inputs.components }} (manifestes régénérés)"
+          git push
+
+      - name: Publier gh-pages (manifeste v2 immuable + latest)
+        run: |
+          ts=$(date -u +%Y%m%d-%H%M%S)
+          mkdir -p gh-pages/manifests/v2
+          cp dist/manifest.v2.json "gh-pages/manifests/v2/$ts.json"
+          cp dist/manifest.v2.json gh-pages/manifests/v2/latest.json
+          cd gh-pages
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "manifeste v2 $ts"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages

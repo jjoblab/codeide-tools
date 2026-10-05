@@ -1,0 +1,44 @@
+name: CI
+
+# Validation continue : shellcheck, catalogue, schéma, manifestes générés à
+# jour, parité v1, immuabilité v2, tests bats, reproductibilité.
+# Miroir local exact : sh scripts/ci-checks.sh
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Outils (shellcheck, bats, python)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats
+          python3 -m pip install --quiet pyyaml jsonschema
+
+      - name: Vérifications (ci-checks.sh)
+        env:
+          SHELLCHECK: shellcheck
+          BATS: /tmp/bats/bin/bats
+          # La reproductibilité télécharge les zips amont épinglés (~13 Mio).
+          CI_SKIP_REPRODUCE: "0"
+        run: sh scripts/ci-checks.sh
+
+      - name: Génération à blanc du manifeste (idempotence)
+        run: |
+          python3 build/gen-manifest.py
+          git diff --exit-code -- dist/manifest.v2.json manifest.json docs/COMPAT.md \
+            || { echo "Les fichiers générés divergent du dépôt — relancer gen-manifest.py et committer"; exit 1; }
