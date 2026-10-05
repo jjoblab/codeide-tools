@@ -6,5 +6,8 @@ build/cache/
 work/
 *.tar.xz
 *.zip
+# Vecteurs golden : les archives de référence DOIVENT être versionnées
+# (ci-checks.sh et bats les exigent ; taille ~200 o chacune).
+!tests/golden/archives/*.tar.xz
 smoke-proof.txt
 upstream-diff.md
