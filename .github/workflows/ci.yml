@@ -38,7 +38,7 @@ jobs:
         run: sh scripts/ci-checks.sh
 
       - name: Génération à blanc du manifeste (idempotence)
-        run: |
-          python3 build/gen-manifest.py
-          git diff --exit-code -- dist/manifest.v2.json manifest.json docs/COMPAT.md \
-            || { echo "Les fichiers générés divergent du dépôt — relancer gen-manifest.py et committer"; exit 1; }
+        # --check régénère les trois sorties en mémoire et les compare aux
+        # fichiers committés en excluant generatedAt (horodatage volontairement
+        # instable — un git diff brut ne peut jamais passer).
+        run: python3 build/gen-manifest.py --check
