@@ -1,0 +1,540 @@
+#!/bin/sh
+# codeide-sdk — CLI d'installation des composants SDK Android de CodeIDE.
+#
+# POSIX sh strict (le bootstrap fournit dash) ; messages utilisateur en français.
+# Non interactif par défaut ; aucune mise à jour système implicite ; un seul
+# téléchargement par artefact (cache adressé par SHA-256, reprise curl -C -) ;
+# vérification SHA-256 systématique ; extraction en staging puis déplacement
+# atomique ; verrou contre les exécutions concurrentes ; plusieurs versions de
+# build-tools côte à côte ; idempotent.
+#
+# Ce CLI n'est NI embarqué NI appelé par l'app CodeIDE (contrat 12.6) : il sert
+# à la CI (smoke tests), au dépannage (doctor) et à l'usage manuel.
+#
+# Codes de sortie (docs/CLI.md) :
+#   0 OK · 1 usage · 2 manifeste · 3 téléchargement · 4 somme · 5 extraction/
+#   vérification · 6 environnement · 7 verrou/concurrence
+#
+# Surcharges : CODEIDE_TOOLS_MANIFEST (URL ou chemin), CODEIDE_ARCH,
+#   CODEIDE_SDK_ROOT, CODEIDE_CACHE, CODEIDE_STATE, CODEIDE_FETCH_CMD (tests).
+#
+# Licence : GPL-3.0 (voir LICENSE).
+set -u
+
+VERSION='2.0.0'
+MANIFEST_URL_DEFAULT='https://jjoblab.github.io/codeide-tools/manifests/v2/latest.json'
+FETCH_CMD_DEFAULT='curl -fSL --retry 3 --retry-delay 2 -C -'
+C_RESET=''; C_RED=''; C_GREEN=''; C_YELLOW=''; C_BLUE=''
+if [ -t 1 ]; then
+  C_RESET=$(printf '\033[0m'); C_RED=$(printf '\033[0;31m')
+  C_GREEN=$(printf '\033[0;32m'); C_YELLOW=$(printf '\033[0;33m'); C_BLUE=$(printf '\033[0;34m')
+fi
+info() { printf '%s%s%s\n' "$C_BLUE" "$*" "$C_RESET"; }
+ok()   { printf '%s%s%s\n' "$C_GREEN" "$*" "$C_RESET"; }
+warn() { printf '%s%s%s\n' "$C_YELLOW" "$*" "$C_RESET" >&2; }
+err()  { printf '%s%s%s\n' "$C_RED" "$*" "$C_RESET" >&2; }
+
+usage() {
+  cat <<'USAGE'
+codeide-sdk — composants du SDK Android pour CodeIDE (v2)
+
+Usage :
+  codeide-sdk list [--json]                       composants disponibles / installés
+  codeide-sdk install <id>[@<version>]… | --profile <nom> [--json]
+  codeide-sdk remove <id>[@<version>]… [--json]
+  codeide-sdk verify [--deep] [--json]            exécute le verify de chaque composant
+  codeide-sdk doctor [--json]                     diagnostic actionnable
+  codeide-sdk env --print                          contrat d'environnement (12.4)
+  codeide-sdk help | version
+
+Options globales (avant la commande) :
+  --json        sorties machine (une ligne JSON par évènement, clé « event »)
+  --arch A      force l'architecture (défaut : uname -m ; surcharge CODEIDE_ARCH)
+  --root DIR    racine du SDK (défaut : $CODEIDE_SDK_ROOT ou $HOME/android-sdk)
+
+Variables :
+  CODEIDE_TOOLS_MANIFEST   URL ou chemin du manifeste v2
+  CODEIDE_ARCH             architecture
+  CODEIDE_SDK_ROOT         racine du SDK
+  CODEIDE_CACHE            cache des artefacts (défaut $HOME/.cache/codeide-tools)
+  CODEIDE_STATE            fichier d'état (défaut <sdk>/install-state.json)
+  CODEIDE_FETCH_CMD        commande de téléchargement (crochet de test)
+USAGE
+}
+
+# --- utilitaires -------------------------------------------------------------
+
+die() { # code message
+  printf '%s\n' "$2" >&2
+  exit "$1"
+}
+
+need_cmd() {
+  for c in "$@"; do
+    command -v "$c" >/dev/null 2>&1 || die 6 "commande requise introuvable : $c (code 6)"
+  done
+}
+
+json_out() { # event json-payload (objet sans accolades ou avec)
+  [ "$JSON_MODE" = 1 ] || return 0
+  payload=$2
+  case $payload in
+    '{'*'}') payload=${payload#'{}'}; payload=${payload#'{'}; payload=${payload%'}'} ;;
+  esac
+  printf '{"event":"%s",%s}\n' "$1" "$payload"
+}
+
+normalize_arch() {
+  case $1 in
+    aarch64|arm64) echo aarch64 ;;
+    arm|armv7*|armv8l) echo arm ;;
+    x86_64|amd64) echo x86_64 ;;
+    *) return 1 ;;
+  esac
+}
+
+# --- environnement (contrat 12.4 — transcription shell) ----------------------
+
+env_print() {
+  home=${HOME:-}
+  [ -n "$home" ] || die 6 "HOME non défini (code 6)"
+  sdk=${CODEIDE_SDK_ROOT:-$home/android-sdk}
+  prefix=${PREFIX:-}
+  if [ -n "${JAVA_HOME:-}" ] && [ -x "${JAVA_HOME:-/nonexistent}/bin/java" ]; then
+    jh=$JAVA_HOME
+  else
+    jh=''
+    for d in "$prefix/opt/openjdk"* "$prefix/lib/jvm/"*; do
+      [ -n "$prefix" ] || break
+      if [ -x "$d/bin/java" ]; then jh=$d; fi
+    done
+  fi
+  printf 'HOME=%s\n' "$home"
+  printf 'ANDROID_HOME=%s\n' "$sdk"
+  printf 'ANDROID_SDK_ROOT=%s\n' "$sdk"
+  printf 'ANDROID_USER_HOME=%s\n' "$home/.android"
+  printf 'GRADLE_USER_HOME=%s\n' "$home/.gradle"
+  [ -n "$jh" ] && printf 'JAVA_HOME=%s\n' "$jh"
+  printf 'PATH=%s\n' "$prefix/bin:$sdk/cmdline-tools/latest/bin:$sdk/platform-tools:${PATH:-}"
+}
+
+# --- manifeste ----------------------------------------------------------------
+
+load_manifest() {
+  need_cmd jq
+  MANIFEST_RAW=$(mktemp "${TMPDIR:-/tmp}/codeide-manifest.XXXXXX") || die 6 "mktemp impossible (code 6)"
+  case $MANIFEST in
+    http://*|https://*)
+      $FETCH -o "$MANIFEST_RAW" "$MANIFEST" || die 2 "téléchargement du manifest impossible : $MANIFEST (code 2)" ;;
+    *)
+      [ -f "$MANIFEST" ] || die 2 "manifest introuvable : $MANIFEST (code 2)"
+      cp "$MANIFEST" "$MANIFEST_RAW" ;;
+  esac
+  jq empty "$MANIFEST_RAW" 2>/dev/null || die 2 "manifest JSON invalide (code 2)"
+  # Validation structurelle minimale (champs requis 12.2 ; le schéma complet
+  # est validé en CI et côté app).
+  jq -e 'type=="object" and (.schemaVersion==2) and (.components|type=="array")
+         and (.profiles|type=="object") and (.compat|type=="array")' \
+    "$MANIFEST_RAW" >/dev/null || die 2 "manifest non conforme 12.2 (racine) (code 2)"
+  bad=$(jq -r '[.components[] | select(
+      ((has("id") and has("version") and has("revision") and has("arch")
+        and has("sources") and has("sha256") and has("size")
+        and has("installPath") and has("critical") and has("requires")
+        and has("verify")) | not)
+      or (.arch|IN("aarch64","arm","x86_64","any")|not)
+      or (.sources|length < 1)
+      or ((.sources[0].url // "" | test("^https://"))|not)
+      or ((.sha256 // "" | test("^[0-9a-f]{64}$"))|not)
+      or (.installPath|test("(^|/)\\.\\.(/|$)") or startswith("/"))
+    )] | length' "$MANIFEST_RAW") || die 2 "analyse du manifest impossible (code 2)"
+  [ "$bad" = "0" ] || die 2 "manifest non conforme 12.2 ($bad composant(s) invalide(s)) (code 2)"
+}
+
+# Renvoie l'entrée de manifeste pour (id, version, arch) — révision la plus
+# haute, channel stable uniquement (règles 12.2 : l'app ignore preview).
+manifest_entry() { # id version
+  jq -c --arg id "$1" --arg v "$2" --argjson arch "\"$ARCH\"" '
+    [.components[]
+      | select(.id==$id and .version==$v)
+      | select(.channel // "stable" | . == "stable")
+      | select(.arch==$arch or .arch=="any")]
+    | sort_by(.revision) | last // empty' "$MANIFEST_RAW"
+}
+
+profile_refs() { # nom
+  jq -r --arg p "$1" '.profiles[$p].components[] // empty' "$MANIFEST_RAW" 2>/dev/null
+}
+
+state_read() { # clé -> valeur (id@version@arch) du champ
+  jq -r --arg k "$1" '(.components // {})[$k] // empty' "$STATE_FILE" 2>/dev/null
+}
+
+state_write() { # clé valeur-json (null = suppression)
+  key=$1; value=$2
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$STATE_FILE" "$key" "$value" <<'PY'
+import json, sys
+path, key, raw = sys.argv[1], sys.argv[2], sys.argv[3]
+value = json.loads(raw)
+try:
+    data = json.load(open(path))
+except Exception:
+    data = {"schemaVersion": 1, "components": {}}
+data.setdefault("components", {})
+if value is None:
+    data["components"].pop(key, None)
+else:
+    data["components"][key] = value
+json.dump(data, open(path, "w"), indent=2, sort_keys=True)
+PY
+  else
+    tmp=$(mktemp "${STATE_FILE}.XXXXXX")
+    jq -S --arg k "$key" --argjson v "$value" \
+      'if $v == null then (.components // {}) | del(.[$k]) else (.components // {})[$k]=$v end' \
+      "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
+  fi
+}
+
+lock_sdk() {
+  LOCK_FILE=$SDK_ROOT/.codeide-sdk.lock
+  need_cmd flock
+  exec 9>"$LOCK_FILE" || die 7 "impossible d'ouvrir le verrou $LOCK_FILE (code 7)"
+  flock -n 9 || die 7 "une autre instance de codeide-sdk tourne ($LOCK_FILE) (code 7)"
+}
+
+fetch_artifact() { # url sha256 destination
+  url=$1; sha=$2; dest=$3
+  cache_file=$CACHE/$sha
+  if [ -f "$cache_file" ]; then
+    actual=$(sha256sum "$cache_file" | cut -d' ' -f1)
+    if [ "$actual" = "$sha" ]; then
+      info "cache : $sha (déjà téléchargé)"
+      cp "$cache_file" "$dest"
+      return 0
+    fi
+    warn "cache invalide pour $sha : re-téléchargement"
+    rm -f "$cache_file"
+  fi
+  info "téléchargement : $url"
+  $FETCH -o "$dest" "$url" || die 3 "échec du téléchargement : $url (code 3)"
+  actual=$(sha256sum "$dest" | cut -d' ' -f1)
+  [ "$actual" = "$sha" ] || die 4 "SHA-256 invalide : attendu $sha, obtenu $actual (code 4)"
+  cp "$dest" "$cache_file" && chmod 644 "$cache_file" 2>/dev/null || true
+  ok "SHA-256 vérifié"
+}
+
+install_component() { # id version
+  id=$1; version=$2
+  entry=$(manifest_entry "$id" "$version")
+  [ -n "$entry" ] || { warn "manifeste incompatible : $id@$version indisponible pour $ARCH (stable)"; return 2; }
+  sha=$(printf '%s' "$entry" | jq -r '.sha256')
+  size=$(printf '%s' "$entry" | jq -r '.size')
+  ipath=$(printf '%s' "$entry" | jq -r '.installPath')
+  rev=$(printf '%s' "$entry" | jq -r '.revision')
+  root=$(printf '%s' "$entry" | jq -r '.archiveRoot // ""')
+  url=$(printf '%s' "$entry" | jq -r '.sources[0].url')
+  earch=$(printf '%s' "$entry" | jq -r '.arch')
+  key="$id@$version@$earch"
+
+  # Idempotence avec état (jamais « si le fichier est absent » sans comparaison) :
+  # sha déjà installé et chemin présent → rien à faire.
+  if [ "$(state_read "$key" 2>/dev/null | jq -r '.sha256' 2>/dev/null)" = "$sha" ] \
+     && [ -d "$SDK_ROOT/$ipath" ]; then
+    ok "$id@$version-$rev : déjà installé (état conforme)"
+    json_out installed "{\"id\":\"$id\",\"version\":\"$version\",\"revision\":\"$rev\",\"arch\":\"$ARCH\",\"status\":\"already\"}"
+    return 0
+  fi
+
+  info "installation : $id@$version-$rev ($ARCH, $size octets)"
+  archive=$WORK/$(basename "$url")
+  fetch_artifact "$url" "$sha" "$archive"
+
+  # Extraction en staging puis déplacement atomique (12.3).
+  stage=$WORK/stage
+  rm -rf "$stage"; mkdir -p "$stage"
+  case $archive in
+    *.tar.xz) tar -xJf "$archive" -C "$stage" || die 5 "extraction impossible : $archive (code 5)" ;;
+    *.zip)    unzip -q -o "$archive" -d "$stage" || die 5 "extraction impossible : $archive (code 5)" ;;
+    *) die 5 "format d'archive non géré : $archive (code 5)" ;;
+  esac
+
+  # Tous les chemins doivent rester sous installPath (contrat 12.3) — pour les
+  # archives internes. Les zips externes ont une racine (archiveRoot) déplacée.
+  top=$ipath
+  if [ -n "$root" ] && [ "$root" != "$ipath" ]; then
+    [ -d "$stage/$root" ] || die 5 "racine d'archive $root absente (code 5)"
+    top=$root
+  fi
+  case $top in
+    ../*|./*|/*) die 5 "installPath interdit : $top (code 5)" ;;
+  esac
+  [ -d "$stage/$top" ] || die 5 "installPath $top absent de l'archive (code 5)"
+
+  mkdir -p "$SDK_ROOT/$(dirname "$ipath")"
+  target=$SDK_ROOT/$ipath
+  if [ -d "$target" ] || [ -e "$target" ]; then
+    rm -rf "$WORK/old-$(basename "$ipath")"
+    mv "$target" "$WORK/old-$(basename "$ipath")"
+  fi
+  mv "$stage/$top" "$target" || die 5 "déplacement atomique impossible vers $ipath (code 5)"
+  rm -rf "$WORK/old-$(basename "$ipath")" 2>/dev/null || true
+
+  state_write "$key" "{\"id\":\"$id\",\"version\":\"$version\",\"revision\":\"$rev\",\"arch\":\"$ARCH\",\"sha256\":\"$sha\",\"installPath\":\"$ipath\",\"installedAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+  ok "$id@$version-$rev installé dans $ipath"
+  json_out installed "{\"id\":\"$id\",\"version\":\"$version\",\"revision\":\"$rev\",\"arch\":\"$ARCH\",\"status\":\"ok\"}"
+}
+
+resolve_specs() { # arguments -> paires "id version" dans RESOLVED
+  RESOLVED=''
+  for spec in "$@"; do
+    id=${spec%%@*}
+    version=${spec#*@}
+    if [ "$version" = "$spec" ]; then version=''; fi
+    if [ -z "$version" ]; then
+      # version non précisée : la plus récente du manifeste pour l'arch
+      version=$(jq -r --arg id "$id" --arg arch "$ARCH" '
+        [.components[] | select(.id==$id and (.arch==$arch or .arch=="any"))
+                       | select((.channel // "stable")=="stable")]
+        | sort_by(.version) | last | .version // empty' "$MANIFEST_RAW")
+      [ -n "$version" ] || { warn "aucune version stable de $id pour $ARCH dans le manifeste"; return 2; }
+    fi
+    RESOLVED="$RESOLVED $id $version"
+  done
+}
+
+# --- commandes ----------------------------------------------------------------
+
+cmd_list() {
+  printf '%s\n' "Composants disponibles ($MANIFEST, arch $ARCH) :"
+  jq -r --arg arch "$ARCH" '.components[]
+    | select(.arch==$arch or .arch=="any")
+    | "  \(.id)@\(.version)-\(.revision)  [\(.channel // "stable")]  \(.size) o  \(.installPath)"' "$MANIFEST_RAW"
+  if [ -f "$STATE_FILE" ]; then
+    printf '%s\n' '' 'Installés (install-state.json) :'
+    jq -r '.components | to_entries[] | "  \(.value.id)@\(.value.version)-\(.value.revision)  \(.key)  \(.value.sha256[0:12])…"' "$STATE_FILE" 2>/dev/null || true
+  fi
+  json_out listed "\"arch\":\"$ARCH\""
+  return 0
+}
+
+cmd_install() {
+  refs=''
+  case $1 in
+    --profile) profile=$2; refs=$(profile_refs "$profile")
+      [ -n "$refs" ] || die 2 "profil inconnu ou vide : $profile (code 2)" ;;
+    *) refs="$*" ;;
+  esac
+  # Les refs de profil sont id@version ; résolution une à une.
+  set -- $refs
+  resolve_specs "$@"
+  [ -n "$RESOLVED" ] || die 1 "rien à installer (code 1)"
+  lock_sdk
+  failures=0
+  # shellcheck disable=SC2086
+  set -- $RESOLVED
+  while [ $# -ge 2 ]; do
+    install_component "$1" "$2" || failures=$((failures+1))
+    shift 2
+  done
+  [ "$failures" = 0 ] || die 5 "$failures composant(s) en échec (code 5)"
+  ok "profil installé : $PROFILE_LABEL"
+  return 0
+}
+
+cmd_remove() {
+  [ $# -ge 1 ] || die 1 "remove : préciser <id>[@<version>] (code 1)"
+  lock_sdk
+  for spec in "$@"; do
+    id=${spec%%@*}; version=${spec#*@}
+    pattern="$id"
+    [ "$version" != "$spec" ] && pattern="$id@$version"
+    keys=$(jq -r --arg p "$pattern" '.components | keys[] | select(startswith($p))' "$STATE_FILE" 2>/dev/null || true)
+    if [ -z "$keys" ]; then
+      warn "$pattern : rien dans l'état installé"
+      json_out removed "{\"id\":\"$id\",\"status\":\"absent\"}"
+      continue
+    fi
+    for key in $keys; do
+      ipath=$(jq -r --arg k "$key" '.components[$k].installPath' "$STATE_FILE")
+      if [ -n "$ipath" ] && [ -d "$SDK_ROOT/$ipath" ]; then
+        ipath=${ipath:?}
+        rm -rf "${SDK_ROOT:?}/$ipath" || die 5 "suppression impossible : $ipath (code 5)"
+      fi
+      if state_write "$key" null 2>/dev/null; then
+        :
+      else
+        jq --arg k "$key" 'del(.components[$k])' "$STATE_FILE" >"$STATE_FILE.tmp" \
+          && mv "$STATE_FILE.tmp" "$STATE_FILE"
+      fi
+      ok "supprimé : $key ($ipath)"
+      json_out removed "{\"id\":\"$key\",\"status\":\"ok\"}"
+    done
+  done
+  return 0
+}
+
+run_verify_one() { # entrée-json
+  entry=$1
+  cmdpath=$(printf '%s' "$entry" | jq -r '.verify.cmd')
+  expect=$(printf '%s' "$entry" | jq -r '.verify.expect')
+  ipath=$(printf '%s' "$entry" | jq -r '.installPath')
+  if [ ! -d "$SDK_ROOT/$ipath" ]; then
+    printf '%s\n' "ABSENT $ipath"
+    return 1
+  fi
+  out=$(cd "$SDK_ROOT" && $cmdpath 2>&1); rc=$?
+  if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -Eq "$expect"; then
+    printf '%s\n' "OK     $cmdpath"
+    return 0
+  fi
+  printf '%s\n' "ÉCHEC  $cmdpath (code $rc)"
+  printf '%s\n' "$out" | sed 's/^/       /'
+  return 1
+}
+
+cmd_verify() {
+  deep=0
+  [ "${1:-}" = --deep ] && deep=1
+  need_cmd jq
+  failures=0; checked=0
+  # Itération ligne à ligne : les entrées JSON contiennent des espaces
+  # (une césure par mots les briserait).
+  listfile=$WORK/verify-entries
+  jq -c --arg arch "$ARCH" '[.components[] | select(.arch==$arch or .arch=="any")]
+    | sort_by(.id, .version) | .[]' "$MANIFEST_RAW" >"$listfile"
+  while IFS= read -r entry; do
+    [ -n "$entry" ] || continue
+    ipath=$(printf '%s' "$entry" | jq -r '.installPath')
+    if [ ! -d "$SDK_ROOT/$ipath" ]; then continue; fi
+    checked=$((checked+1))
+    if run_verify_one "$entry"; then :; else failures=$((failures+1)); fi
+    if [ "$deep" = 1 ]; then
+      akey=$(printf '%s' "$entry" | jq -r '[.id, .version, (.arch // "any")] | join("@")')
+      sha=$(state_read "$akey" | jq -r '.sha256' 2>/dev/null)
+      printf '%s\n' "       état : ${sha:-inconnu}"
+    fi
+  done <"$listfile"
+  printf '%s\n' '' "vérifiés : $checked · échecs : $failures"
+  json_out verified "{\"checked\":$checked,\"failures\":$failures}"
+  [ "$failures" = 0 ] || return 5
+  return 0
+}
+
+cmd_doctor() {
+  printf '%s\n' "codeide-sdk $VERSION — diagnostic"
+  printf '%s\n' "arch : $ARCH · sdk : $SDK_ROOT · manifest : $MANIFEST"
+  need_cmd jq sha256sum tar xz
+
+  printf '%s\n' '' '— Outils requis —'
+  for c in jq sha256sum tar xz curl unzip; do
+    if command -v "$c" >/dev/null 2>&1; then
+      printf '  %-10s %s\n' "$c" "$(command -v "$c")"
+    else
+      printf '  %-10s ABSENT\n' "$c"
+    fi
+  done
+
+  printf '%s\n' '' '— JVM (validée par exécution) —'
+  javabin=$(command -v java || true)
+  if [ -n "$javabin" ]; then
+    out=$(java -XshowSettings:properties -version 2>&1); rc=$?
+    if [ $rc -eq 0 ]; then
+      printf '%s\n' "$out" | grep -E 'java\.home|java\.version' | sed 's/^/  /'
+      ok "JVM fonctionnelle ($javabin)"
+    else
+      err "java présent mais l'exécution échoue (code $rc) — sortie complète :"
+      printf '%s\n' "$out" | sed 's/^/  /'
+    fi
+  else
+    if [ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+      out=$("$JAVA_HOME/bin/java" -XshowSettings:properties -version 2>&1); rc=$?
+      printf '%s\n' "$out" | grep -E 'java\.home|java\.version' | sed 's/^/  /'
+      [ $rc -eq 0 ] && ok "JVM JAVA_HOME fonctionnelle" || err "JAVA_HOME/bin/java échoue (code $rc)"
+    else
+      warn "aucune JVM trouvée (PATH ni JAVA_HOME) — les composants exigent jdk>=17"
+    fi
+  fi
+
+  printf '%s\n' '' '— Réseau —'
+  net=$($FETCH -o /dev/null -w '%{http_code}' "$MANIFEST" 2>&1) || true
+  case $net in
+    200|000) ok "manifeste joignable (HTTP $net)" ;;
+    *) warn "manifeste NON joignable (HTTP $net) : $MANIFEST" ;;
+  esac
+
+  printf '%s\n' '' '— Droits et espace —'
+  mkdir -p "$SDK_ROOT" 2>/dev/null && ok "racine créable/accessible : $SDK_ROOT" || err "racine non accessible : $SDK_ROOT"
+  df -h "$SDK_ROOT" 2>/dev/null | tail -1 | sed 's/^/  /'
+
+  printf '%s\n' '' '— État installé —'
+  [ -f "$STATE_FILE" ] && jq -r '.components | to_entries[] | "  \(.value.id)@\(.value.version)-\(.value.revision)  \(.value.sha256[0:12])…"' "$STATE_FILE" 2>/dev/null \
+    || printf '%s\n' '  (aucun composant installé)'
+
+  printf '%s\n' '' '— Exécution du verify de chaque composant installé —'
+  cmd_verify 2>/dev/null || warn "des composants installés échouent au verify (voir ci-dessus)"
+  return 0
+}
+
+# --- analyse des arguments ------------------------------------------------------
+
+JSON_MODE=0
+ARGS=''
+cmd=''
+while [ $# -gt 0 ]; do
+  case $1 in
+    --json) JSON_MODE=1; shift ;;
+    --arch) ARCH_OVERRIDE=$2; shift 2 ;;
+    --root) CODEIDE_SDK_ROOT=$2; shift 2 ;;
+    help|-h|--help) usage; exit 0 ;;
+    version|--version) printf 'codeide-sdk %s\n' "$VERSION"; exit 0 ;;
+    *)
+      if [ -z "$cmd" ]; then cmd=$1; else ARGS="$ARGS $1"; fi
+      shift ;;
+  esac
+done
+[ -n "$cmd" ] || { usage >&2; exit 1; }
+
+MANIFEST=${CODEIDE_TOOLS_MANIFEST:-$MANIFEST_URL_DEFAULT}
+FETCH=${CODEIDE_FETCH_CMD:-$FETCH_CMD_DEFAULT}
+ARCH_RAW=${ARCH_OVERRIDE:-${CODEIDE_ARCH:-$(uname -m 2>/dev/null || echo '')}}
+ARCH=$(normalize_arch "${ARCH_RAW:-x}") || die 6 "architecture non supportée : $ARCH_RAW (code 6)"
+HOME_DIR=${HOME:-$(cd ~ 2>/dev/null && pwd)}
+SDK_ROOT=${CODEIDE_SDK_ROOT:-$HOME_DIR/android-sdk}
+CACHE=${CODEIDE_CACHE:-$HOME_DIR/.cache/codeide-tools}
+STATE_FILE=${CODEIDE_STATE:-$SDK_ROOT/install-state.json}
+mkdir -p "$SDK_ROOT" "$CACHE" 2>/dev/null || die 6 "impossible de créer $SDK_ROOT ou $CACHE (code 6)"
+[ -f "$STATE_FILE" ] || printf '{"schemaVersion":1,"components":{}}\n' >"$STATE_FILE" 2>/dev/null || true
+PROFILE_LABEL=''
+
+WORK=$(mktemp -d "${TMPDIR:-/tmp}/codeide-sdk.XXXXXX") || die 6 "mktemp impossible (code 6)"
+trap 'rm -rf "$WORK" "$MANIFEST_RAW" 2>/dev/null' EXIT
+MANIFEST_RAW=/dev/null
+
+case $cmd in
+  list) load_manifest; cmd_list ;;
+  install)
+    load_manifest
+    # shellcheck disable=SC2086
+    set -- ${ARGS# }
+    [ $# -ge 1 ] || die 1 "install : préciser <id>[@<version>]… ou --profile <nom> (code 1)"
+    PROFILE_LABEL="installation manuelle"
+    cmd_install "$@"
+    ;;
+  remove)
+    # shellcheck disable=SC2086
+    set -- ${ARGS# }
+    cmd_remove "$@"
+    ;;
+  verify) load_manifest; # shellcheck disable=SC2086
+    set -- ${ARGS# }
+    cmd_verify "$@"
+    ;;
+  doctor) load_manifest; cmd_doctor ;;
+  env)
+    case ${ARGS# } in
+      --print|"") env_print ;;
+      *) die 1 "env : seule la sous-commande --print existe (code 1)" ;;
+    esac
+    ;;
+  *) usage >&2; die 1 "commande inconnue : $cmd (code 1)" ;;
+esac
