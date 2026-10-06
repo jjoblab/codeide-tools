@@ -234,16 +234,40 @@ repo = pathlib.Path(repo)
 import yaml
 lz = yaml.safe_load((repo/"catalog/upstream/lzhiyong.yaml").read_text())
 g = yaml.safe_load((repo/"catalog/upstream/google.yaml").read_text())
+try:
+    aosp = yaml.safe_load((repo/"catalog/upstream/aosp.yaml").read_text())
+except FileNotFoundError:
+    aosp = {}
 def git(*a):
     try: return subprocess.check_output(["git", *a], cwd=repo, text=True).strip()
     except Exception: return None
+
+# Amont EFFECTIF par version (ADR 0012) : versions aosp = construites depuis
+# les sources épinglées (pas de pin binaire — les commits sont la provenance) ;
+# versions lzhiyong = binaires amont épinglés par sha256.
+if version in (aosp.get("pins") or {}):
+    pin = aosp["pins"][version]
+    upstream = {
+        "mode": "aosp-sources",
+        "recipe": aosp["recipe"],
+        "ndk": aosp["ndk"],
+        "image": aosp["image"],
+        "api": pin.get("api", aosp.get("api", 30)),
+        "tag": pin["tag"],
+        "license": "Apache-2.0",
+        "repos": pin["repos"],
+        "built": list(arches),
+    }
+else:
+    upstream = {
+        "mode": "lzhiyong-binaire",
+        "repo": lz["repo"], "tag": version, "license": lz["license"],
+        "pins": {a: lz["pins"][version][a] for a in arches},
+    }
 prov = {
     "component": f"{cid}-{version}-{rev}",
     "builtAt": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-    "upstream": {
-        "repo": lz["repo"], "tag": version, "license": lz["license"],
-        "pins": {a: lz["pins"][version][a] for a in arches},
-    },
+    "upstream": upstream,
     "toolchain": {"xz": subprocess.check_output(["xz", "--version"], text=True).splitlines()[0]},
     "determinism": {"sourceDateEpoch": 946684800, "xzLevel": 6, "xzThreads": 1, "tarFormat": "ustar", "sorted": True},
     "gitCommit": git("rev-parse", "HEAD"),
