@@ -14,21 +14,20 @@
 # limitations under the License.
 #
 
+# Port android-16.0.0_r1 (ADR 0012) : l'amont a réorganisé libprocessgroup —
+# cgrouprc_format/ et les anciens noms ont disparu ; sched_policy.cpp et
+# task_profiles.cpp ne sont plus dans ce répertoire. Seuls les fichiers
+# EXISTANTS sont listés (échec net sinon — pas de repli silencieux).
 add_library(libprocessgroup STATIC
     ${SRC}/core/libprocessgroup/cgroup_map.cpp
     ${SRC}/core/libprocessgroup/processgroup.cpp
-    ${SRC}/core/libprocessgroup/sched_policy.cpp
-    ${SRC}/core/libprocessgroup/task_profiles.cpp
-    ${SRC}/core/libprocessgroup/cgrouprc_format/cgroup_controller.cpp
-    ${SRC}/core/libprocessgroup/cgrouprc/cgroup_controller.cpp
-    ${SRC}/core/libprocessgroup/cgrouprc/cgroup_file.cpp
+    ${SRC}/core/libprocessgroup/cgrouprc/a_cgroup_controller.cpp
+    ${SRC}/core/libprocessgroup/cgrouprc/a_cgroup_file.cpp
     )
 
-target_include_directories(libprocessgroup PRIVATE 
+target_include_directories(libprocessgroup PRIVATE
     ${SRC}/core/libprocessgroup/include
     ${SRC}/core/libprocessgroup/cgrouprc/include
-    ${SRC}/core/libprocessgroup/cgrouprc_format/include
-    ${SRC}/core/libprocessgroup/util/include
     ${SRC}/libbase/include
     ${SRC}/core/libcutils/include
     ${SRC}/jsoncpp/include

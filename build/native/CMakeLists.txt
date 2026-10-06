@@ -82,10 +82,16 @@ add_subdirectory(src/googletest EXCLUDE_FROM_ALL)
 add_subdirectory(src/tinyxml2 EXCLUDE_FROM_ALL)
 
 # building sdk-tools
+# Port codeide (ADR 0012) — CODEIDE_SCOPE restreint la configuration :
+#   all (défaut) : build-tools + platform-tools + others (zip complet) ;
+#   build-tools  : exclut platform-tools/ + others/ (adb/fastboot exigent
+#                  leur propre portage par tag — fichiers déplacés amont).
 add_subdirectory(lib)
 add_subdirectory(build-tools)
-add_subdirectory(platform-tools)
-add_subdirectory(others)
+if(NOT DEFINED ENV{CODEIDE_SCOPE} OR "$ENV{CODEIDE_SCOPE}" STREQUAL "all")
+    add_subdirectory(platform-tools)
+    add_subdirectory(others)
+endif()
 
 # creating source tarballs
 set(CPACK_PACKAGE_DIRECTORY ${PROJECT_SOURCE_DIR}/pack)

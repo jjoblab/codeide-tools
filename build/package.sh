@@ -76,9 +76,9 @@ info() { printf '==> %s\n' "$*"; }
 
 sha256_of() { sha256sum "$1" | cut -d' ' -f1; }
 
-fetch_zip() { # amont tag arch — le chemin du zip est ÉCHOS sur stdout,
+fetch_zip() { # amont tag arch [composant] — le chemin du zip est ÉCHOS sur stdout,
   #           tout le journal va sur stderr (pas de mélange).
-  local amont=$1 tag=$2 arch=$3
+  local amont=$1 tag=$2 arch=$3 composant=${4:-}
   local name="android-sdk-tools-static-$arch.zip" want got url
   if [ -n "$UPSTREAM_DIR" ] && [ -s "$UPSTREAM_DIR/$tag/$name" ]; then
     echo "$UPSTREAM_DIR/$tag/$name"; return
@@ -90,8 +90,9 @@ fetch_zip() { # amont tag arch — le chemin du zip est ÉCHOS sur stdout,
     aosp)
       # Construction native depuis les sources AOSP épinglées (ADR 0012) —
       # pas de téléchargement : le zip est fabriqué par build/native/.
-      info "construction native (aosp) $tag/$arch" >&2
-      bash "$REPO/build/native/build-native.sh" "$tag" "$arch" "$CACHE/$tag/$name" >&2
+      # composant → CODEIDE_SCOPE (build-tools restreint la configuration).
+      info "construction native (aosp) $tag/$arch${composant:+ ($composant)}" >&2
+      bash "$REPO/build/native/build-native.sh" "$tag" "$arch" "$CACHE/$tag/$name" "$composant" >&2
       echo "$CACHE/$tag/$name"; return ;;
     *) die "amont inconnu : $amont" ;;
   esac
@@ -125,7 +126,7 @@ package_native() { # id version revision arch
   # Amont effectif : surcharge par version (aosp — ADR 0012), sinon composant.
   local amont zip
   amont="$(python3 build/catalog-query.py amont-version "$id" "$version")"
-  zip="$(fetch_zip "$amont" "$tag_up" "$arch")"
+  zip="$(fetch_zip "$amont" "$tag_up" "$arch" "$id")"
   [ -f "$zip" ] || die "zip amont introuvable : $tag_up/$arch"
   if [ "$amont" = aosp ]; then
     # Pas de pin binaire amont : le sha du zip construit est un résultat

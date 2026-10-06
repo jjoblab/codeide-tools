@@ -2,10 +2,14 @@
 # build-native.sh — construit le zip amont équivalent (android-sdk-tools-static-
 # <arch>.zip) DEPUIS LES SOURCES AOSP épinglées au catalogue (ADR 0012).
 #
-# usage : build-native.sh <version> <arch> <out-zip>
+# usage : build-native.sh <version> <arch> <out-zip> [composant]
 #   version : version catalogue (ex. 36.0.0) — pins = catalog/upstream/aosp.yaml
 #   arch    : aarch64 | arm | x86_64
 #   out-zip : chemin du zip produit (format attendu par build/package.sh)
+#   composant : build-tools | platform-tools (vide = zip complet)
+#              → CODEIDE_SCOPE : build-tools restreint la configuration CMake
+#                aux outils du composant (platform-tools/adb exige un portage
+#                propre par tag — fichiers déplacés amont, ADR 0012)
 #
 # Étapes (dans Docker, image épinglée — Dockerfile) :
 #   1. export des pins catalogue → pins.json (commits AOSP immuables)
@@ -21,9 +25,15 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 NATIVE="$REPO/build/native"
 
-version=$1 arch=$2 out=$3
+version=$1 arch=$2 out=$3 composant=${4:-}
 [ -n "$version" ] && [ -n "$arch" ] && [ -n "$out" ] || {
-  echo "usage : build-native.sh <version> <arch> <out-zip>" >&2; exit 1; }
+  echo "usage : build-native.sh <version> <arch> <out-zip> [composant]" >&2; exit 1; }
+
+case $composant in
+  build-tools)   SCOPE="build-tools" ;;
+  ""|platform-tools) SCOPE="all" ;;
+  *) echo "composant inconnu : $composant" >&2; exit 1 ;;
+esac
 
 case $arch in
   aarch64) abi=arm64-v8a ;;
@@ -45,7 +55,10 @@ echo "==> amont aosp : $aosp_tag ($arch → $abi)" >&2
 docker build -q -t codeide-native "$NATIVE" >/dev/null
 
 # 3) construction dans le conteneur
+docker_run_extra=()
+[ "$SCOPE" != all ] && docker_run_extra+=(-e CODEIDE_SCOPE="$SCOPE")
 docker run --rm \
+  ${docker_run_extra:+"${docker_run_extra[@]}"} \
   -v "$NATIVE":/recipe:ro \
   -v "$WORK":/work \
   codeide-native bash -euxo pipefail -c '
