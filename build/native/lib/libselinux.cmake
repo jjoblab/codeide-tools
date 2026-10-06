@@ -64,17 +64,24 @@ add_library(libselinux STATIC
     )
 
 target_compile_definitions(libselinux PRIVATE
-    -DAUDITD_LOG_TAG=1003 
-    -D_GNU_SOURCE 
-    -DHOST 
+    -DAUDITD_LOG_TAG=1003
+    -D_GNU_SOURCE
+    -DHOST
     -DUSE_PCRE2
-    -DNO_PERSISTENTLY_STORED_PATTERNS 
+    -DNO_PERSISTENTLY_STORED_PATTERNS
     -DDISABLE_SETRANS
-    -DDISABLE_BOOL 
-    -DNO_MEDIA_BACKEND 
-    -DNO_X_BACKEND 
+    -DDISABLE_BOOL
+    -DNO_MEDIA_BACKEND
+    -DNO_X_BACKEND
     -DNO_DB_BACKEND
     -DPCRE2_CODE_UNIT_WIDTH=8
+    # r3 (statique) : bionic fournit reallocarray (API 29+) et strlcpy
+    # (toujours) — les réimplémentations de compat de selinux_internal.c
+    # (#ifndef HAVE_REALLOCARRAY/HAVE_STRLCPY) provoquaient un « duplicate
+    # symbol: reallocarray » au lien -static avec libc.a (run 37455143538 ;
+    # en lien dynamique l'interposition masquait le conflit).
+    -DHAVE_REALLOCARRAY=1
+    -DHAVE_STRLCPY=1
     )
     
 target_include_directories(libselinux PRIVATE
