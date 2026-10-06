@@ -28,7 +28,9 @@ enable_language(ASM)
 # android-16 les utilisent à plusieurs endroits : libbase, liblog,
 # libcutils/trace-dev.inc…).
 add_compile_options(
-    -include ${CMAKE_SOURCE_DIR}/compat/include/bionic/system_properties_compat.h
+    # C/CXX uniquement — le force-include d'un en-tête C dans les fichiers
+    # ASSEMBLEUR (.S de boringssl) casse le préprocesseur asm.
+    "$<$<COMPILE_LANGUAGE:C,CXX>:SHELL:-include ${CMAKE_SOURCE_DIR}/compat/include/bionic/system_properties_compat.h>"
 )
 
 # set global cflags and cxxflags
