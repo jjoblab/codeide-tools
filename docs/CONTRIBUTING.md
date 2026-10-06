@@ -18,7 +18,7 @@ git ls-remote --tags https://android.googlesource.com/platform/frameworks/base \
   'refs/tags/android-16.0.0_r*'
 ```
 
-Résolvez les 39 dépôts aux commits du tag (script jumelle de résolution —
+Résolvez les dépôts (40 actuellement) aux commits du tag (script jumelle de résolution —
 voir `build/native/README.md`), puis écrivez l'entrée dans
 `catalog/upstream/aosp.yaml` (`pins`) :
 
@@ -27,7 +27,7 @@ voir `build/native/README.md`), puis écrivez l'entrée dans
     tag: android-16.0.0_r1
     repos:
       src/base: 99b01a65cc4c…
-      # … 39 dépôts, commit par dépôt
+      # … un commit par dépôt (40 actuellement)
 ```
 
 et déclarez `upstream: aosp` dans l'entrée de version du composant

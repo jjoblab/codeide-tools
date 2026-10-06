@@ -120,7 +120,20 @@ def build(args):
         if not Path(args.protoc).exists():
             raise ValueError('no such file or directory: {}'.format(args.protoc))
         command.append('-DPROTOC_PATH={}'.format(args.protoc))
-    
+
+    # r3 : zlib statique de la recette (prefix avec lib/libz.a + include/).
+    # Le NDK n'expose pas libz.a pour les API récentes — sans ceci, le lien
+    # -static échoue (« attempted static link of dynamic object libz.so »,
+    # run 37450535018). ZLIB_ROOT (CMP0074) oriente le find_package(ZLIB)
+    # de libpng vers NOTRE .a ; le -L oriente le -lz nu des cibles (aapt,
+    # dexdump, split-select) vers le même .a avant le sysroot.
+    if args.zlib is not None:
+        zlib_lib = Path(args.zlib) / 'lib' / 'libz.a'
+        if not zlib_lib.exists():
+            raise ValueError('zlib statique introuvable : {}'.format(zlib_lib))
+        command.append('-DZLIB_ROOT={}'.format(args.zlib))
+        command.append('-DCMAKE_EXE_LINKER_FLAGS=-L{}'.format(Path(args.zlib) / 'lib'))
+
     result = subprocess.run(command)
     start_time = time.time()
     if result.returncode == 0:
@@ -134,12 +147,23 @@ def build(args):
         complete(args)
         end_time = time.time()
         print('\033[1;32mbuild success cost time: {}\033[0m'.format(format_time(end_time - start_time)))
+    else:
+        # r3 : un échec cmake/ninja DOIT faire échouer le build. L'ancien
+        # comportement (exit 0 silencieux) laissait build-native.sh
+        # conditionner le zip STALE du run précédent — bug réel du run
+        # 37450535018 : lien -static en échec, tar r2 reconditionné en r3.
+        raise SystemExit(
+            'cmake/ninja a échoué (code {}) — REFUS de conditionner un zip '
+            'périmé du build précédent'.format(result.returncode))
   
 def main():
     parser = argparse.ArgumentParser()
     tasks = os.cpu_count()
 
     parser.add_argument('--ndk', required=True, help='set the ndk toolchain path')
+
+    parser.add_argument('--zlib', required=False,
+                        help='prefix zlib statique de la recette (lib/libz.a + include/)')
 
     parser.add_argument('--abi', choices=['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'], 
       required=True, help='build for the specified architecture')

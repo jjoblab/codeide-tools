@@ -150,7 +150,7 @@ complémentaires (`git ls-remote` sur android.googlesource.com) :
   Lzhiyong (août 2024), pas un abandon de l'auteur seul.
 - Les versions 36.x/37.x restent atteignables par les **refs de release** :
   `android-16.0.0_r1`→`r4` (build-tools 36.x), `android-17.0.0_r1` (37.x) —
-  présentes sur les 39 dépôts de `repos.json` (résolution complète, commits
+  présentes sur les dépôts de `repos.json` (40 actuellement) (résolution complète, commits
   journalisés dans `catalog/upstream/aosp.yaml`).
 
 Décision : voie (b) **activée** — ADR 0012 (amont `aosp`, recette vendue dans

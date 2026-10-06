@@ -9,7 +9,7 @@
 ## Décision
 
 1. **Nouvel amont `aosp`** (`catalog/upstream/aosp.yaml`) : les sources sont
-   épinglées **par dépôt et par commit** (39 dépôts android.googlesource.com,
+   épinglées **par dépôt et par commit** (40 dépôts android.googlesource.com,
    résolus depuis le tag `android-16.0.0_r1` pour 36.0.0) — immuable, sans
    dépendance à un tiers mainteneur. Les tags `platform-tools-*` amont
    s'arrêtent à 35.0.2 (vérifié 2026-10-06) : les versions 36.x/37.x se

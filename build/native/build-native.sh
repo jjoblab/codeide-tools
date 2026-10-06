@@ -84,9 +84,38 @@ docker run --rm \
       ninja -C src/protobuf/build protoc
     fi
 
+    # zlib statique CROISÉ NDK (r3) — persistant dans /work/build-<arch>/zlib-prefix.
+    # Le NDK ne fournit pas libz.a pour les API récentes : le lien -static des
+    # exécutables échouait sur le .so du sysroot (« attempted static link of
+    # dynamic object libz.so », run 37450535018). La recette construit la
+    # sienne depuis external/zlib épinglé (ADR 0012 — auto-suffisance).
+    ZP=/work/build-'"$arch"'/zlib-prefix
+    if [ ! -f "$ZP/lib/libz.a" ]; then
+      rm -rf "$ZP-build"
+      cmake -GNinja -S /work/recipe-mirror/src/zlib -B "$ZP-build" \
+        -DCMAKE_TOOLCHAIN_FILE=/opt/ndk/build/cmake/android.toolchain.cmake \
+        -DANDROID_ABI='"$abi"' -DANDROID_PLATFORM=android-'"$API"' \
+        -DCMAKE_SYSTEM_NAME=Android -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_SHARED_LIBS=OFF
+      ninja -C "$ZP-build" zlibstatic
+      mkdir -p "$ZP/lib" "$ZP/include"
+      cp "$(find "$ZP-build" -name libz.a | head -1)" "$ZP/lib/"
+      cp /work/recipe-mirror/src/zlib/zlib.h "$ZP/include/"
+      zch=$(find "$ZP-build" -name zconf.h | head -1)
+      if [ -n "$zch" ]; then cp "$zch" "$ZP/include/"; \
+      else cp /work/recipe-mirror/src/zlib/zconf.h "$ZP/include/"; fi
+      echo "zlib statique : $ZP/lib/libz.a" >&2
+    fi
+
+    # Garde-fou (r3) : le zip du build PRÉCÉDENT ne doit jamais survivre à un
+    # échec — build.py refuse désormais les échecs cmake/ninja, et ce rm
+    # garantit le reconditionnement impossible (bug réel du run 37450535018).
+    rm -f /work/build-'"$arch"'/android-sdk-tools-'"$arch"'.zip
+
     python3 build.py --ndk /opt/ndk --abi '"$abi"' --api '"$API"' \
       --build /work/build-'"$arch"' \
-      --protoc /work/recipe-mirror/src/protobuf/build/protoc
+      --protoc /work/recipe-mirror/src/protobuf/build/protoc \
+      --zlib /work/build-'"$arch"'/zlib-prefix
   '
 
 # 4) le zip est écrit par build.py à --build/… (binary_dir.parent, cf.
