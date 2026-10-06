@@ -15,7 +15,7 @@ ko_() { printf 'ÉCHEC : %s\n' "$1" >&2; FAIL=$((FAIL+1)); }
 
 # 1. Syntaxe + shellcheck de tous les scripts shell (CLI POSIX, shim, build).
 etape "shellcheck (seuil : warning)"
-for f in cli/codeide-sdk scripts/codeidesetup build/package.sh build/native/build-native.sh; do
+for f in cli/codeide-sdk scripts/codeidesetup build/package.sh build/native/build-native.sh scripts/smoke-banc.sh; do
   if $SHELLCHECK -S warning "$f"; then ok_ "$f"; else ko_ "$f"; fi
 done
 

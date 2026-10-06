@@ -1,79 +1,102 @@
 name: Smoke tests
 
-# Vérification d'exécution RÉELLE sur bionic aarch64 (runner public arm64 +
-# image Termux — piste § 7 du prompt, à valider au premier run, ADR 0009).
-# Porte de publication : marque smoke ok dans le catalogue (channel stable)
-# uniquement si `verify --deep` passe ; sinon la version reste preview.
-# Utilisé seul (re-vérification post-publication, téléchargement réel depuis
-# les URLs du manifeste) ou par publish.yml (avant publication).
+# Vérification d'exécution RÉELLE des binaires bioniques, sur les TROIS arches :
+#   aarch64 : runner arm64 public + conteneur Termux natif.
+#   x86_64  : runner amd64 public + conteneur Termux amd64 natif.
+#   arm     : runner amd64 + conteneur Termux armv7 SOUS QEMU (binfmt) :
+#             userspace bionique réel, CPU émulé — le binaire s'exécute
+#             réellement, l'évidence catalogue cite l'émulation (honnêteté,
+#             ADR 0009).
+# Porte de promotion preview → stable : une entrée catalogue ne passe stable
+# QUE si son exécution réelle est attestée. La preuve est le run lui-même
+# (URL en source catalogue) + l'artefact smoke-proof ; la bascule catalogue
+# reste un commit mainteneur (le catalogue = code review, ADR 0009).
+#
+# v2 — pourquoi la réécriture : l'ancienne version montait le conteneur au
+# niveau JOB (steps en ROOT) : pkg refuse root (« Cannot run 'pkg' command
+# as root », run 37426582933) et seule aarch64 était couverte. Le banc est
+# désormais scripts/smoke-banc.sh (docker run, entrypoint préservé → su
+# uid 1000 « system », seul mode où pkg fonctionne — patron de la porte
+# bionic de publish.yml, run 37424794649) : shellcheck-able, testable
+# localement, workflow minimal.
 
 on:
   workflow_dispatch:
     inputs:
+      components:
+        description: "id@version séparés par virgules (ex. build-tools@36.0.0) — vide = profil default du manifeste"
+        type: string
+        default: ""
+      archs:
+        description: "Arches à tester (aarch64,arm,x86_64) — vide = les trois"
+        type: string
+        default: ""
       manifest:
         description: "URL du manifeste à tester (vide = manifests/v2/latest.json publié)"
         type: string
         default: ""
   schedule:
-    - cron: "0 5 * * 1"   # chaque lundi 05:00 UTC : re-vérifie le manifeste publié
+    - cron: "0 5 * * 1"   # chaque lundi 05:00 UTC : re-vérifie le profil default publié, 3 arches
 
 permissions:
-  contents: write   # commit du catalogue si un smoke passe (stable) ou échoue
+  contents: read   # preuve = artefact + run ; bascule catalogue = commit mainteneur (ADR 0009)
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  smoke:
-    runs-on: ubuntu-24.04-arm
-    container:
-      image: termux/termux-docker:latest
-      options: --user root
+  selection:
+    runs-on: ubuntu-latest
+    outputs:
+      archs: ${{ steps.sel.outputs.archs }}
     steps:
-      - name: Environnement Termux
+      - name: Valide et calcule la matrice d'arches
+        id: sel
+        env:
+          ARCHS: ${{ inputs.archs || '' }}
         run: |
-          export PATH=/data/data/com.termux/files/usr/bin:$PATH
-          pkg install -y curl jq tar xz python
-          uname -m   # doit afficher aarch64
+          python3 - "$ARCHS" <<'PY' >> "$GITHUB_OUTPUT"
+          import json, sys
+          req = [a.strip() for a in (sys.argv[1] or "").split(",") if a.strip()]
+          supported = ["aarch64", "arm", "x86_64"]
+          unknown = [a for a in req if a not in supported]
+          if unknown:
+              # Échec net : jamais de repli silencieux sur une typo d'entrée.
+              sys.exit(f"arches inconnues : {unknown} (supportées : {supported})")
+          if not req:
+              req = supported
+          print("archs=" + json.dumps(req))
+          PY
+
+  smoke:
+    needs: selection
+    name: smoke (${{ matrix.arch }})
+    strategy:
+      fail-fast: false   # un échec d'arche n'annule pas les autres (évidence par arch)
+      matrix:
+        arch: ${{ fromJSON(needs.selection.outputs.archs) }}
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    timeout-minutes: 90
+    steps:
       - uses: actions/checkout@v4
 
-      - name: codeide-sdk doctor (sorties réelles)
-        env:
-          MANIFEST: ${{ inputs.manifest || 'https://jjoblab.github.io/codeide-tools/manifests/v2/latest.json' }}
-        run: |
-          export PATH=/data/data/com.termux/files/usr/bin:$PATH
-          export CODEIDE_TOOLS_MANIFEST="$MANIFEST"
-          export CODEIDE_SDK_ROOT="$HOME/smoke-sdk"
-          sh cli/codeide-sdk doctor || true   # diagnostic complet, jamais muet
+      # armv7 : aucun runner public 32 bits — émulation qemu-user via binfmt,
+      # posée AVANT le docker run du banc (voir scripts/smoke-banc.sh).
+      - name: Émulation armv7 (binfmt/QEMU) — arch arm uniquement
+        if: matrix.arch == 'arm'
+        run: docker run --privileged --rm tonistiigi/binfmt:qemu-v7.0.2 --install arm
 
-      - name: Téléchargement réel + installation du profil default
+      - name: Banc bionique — téléchargement réel + install + verify --deep
         env:
+          COMPONENTS: ${{ inputs.components || '' }}
           MANIFEST: ${{ inputs.manifest || 'https://jjoblab.github.io/codeide-tools/manifests/v2/latest.json' }}
-        run: |
-          export PATH=/data/data/com.termux/files/usr/bin:$PATH
-          export CODEIDE_TOOLS_MANIFEST="$MANIFEST"
-          export CODEIDE_SDK_ROOT="$HOME/smoke-sdk"
-          sh cli/codeide-sdk install --profile default
-
-      - name: verify --deep (chaque binaire exécuté, motif vérifié)
-        env:
-          MANIFEST: ${{ inputs.manifest || 'https://jjoblab.github.io/codeide-tools/manifests/v2/latest.json' }}
-        run: |
-          export PATH=/data/data/com.termux/files/usr/bin:$PATH
-          export CODEIDE_TOOLS_MANIFEST="$MANIFEST"
-          export CODEIDE_SDK_ROOT="$HOME/smoke-sdk"
-          sh cli/codeide-sdk verify --deep
-
-      - name: Marquer le catalogue si tout passe (stable)
-        if: success()
-        run: |
-          # Le passage smoke.yml est enregistré par le mainteneur via PR :
-          # ce job produit un artefact de preuve, la bascule catalogue reste
-          # une PR revue (le catalogue = code review, ADR 0009).
-          export PATH=/data/data/com.termux/files/usr/bin:$PATH
-          { echo "SMOKE OK $(date -u +%Y-%m-%dT%H:%M:%SZ)"; \
-            sh cli/codeide-sdk verify --deep --json 2>/dev/null || true; } > smoke-proof.txt
-          cat smoke-proof.txt
+          ARCH: ${{ matrix.arch }}
+        run: sh scripts/smoke-banc.sh "$COMPONENTS" "$MANIFEST" "$ARCH"
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: smoke-proof
-          path: smoke-proof.txt
+          name: smoke-proof-${{ matrix.arch }}
+          path: smoke/smoke-proof.txt
+          if-no-files-found: warn   # preuve absente = échec déjà visible dans le log du banc
