@@ -36,6 +36,7 @@ add_library(libbase STATIC
     )
 
 target_include_directories(libbase PRIVATE
+    ${CMAKE_SOURCE_DIR}/compat/include
     ${SRC}/libbase/include
     ${SRC}/core/include
     ${SRC}/fmtlib/include 
