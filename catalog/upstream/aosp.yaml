@@ -1,0 +1,56 @@
+# Amont AOSP — construction native depuis les sources (ADR 0012).
+#
+# Indépendance vis-à-vis de Lzhiyong/android-sdk-tools : les binaires sont
+# construits par NOTRE pipeline (build/native/ — recette vendue Apache-2.0,
+# image Docker épinglée, NDK r27c) depuis les sources AOSP aux COMMITS
+# épinglés ci-dessous (résolus depuis le tag android-16.0.0_r1, 2026-10-06).
+# Contrairement à l'amont lzhiyong : pas de pin binaire — le sha256 du zip
+# construit est un résultat journalisé (provenance.json), pas une entrée.
+type: source
+recipe: build/native
+ndk: r27c              # 27.2.12479018 — lignée des binaires v1 mesurés (ELF r27b)
+api: 30                # niveau API bionic minimal (constat R1, build.py l. 147)
+image: ubuntu:24.04@sha256:f610ab94648195aa356059f5b41d6085c9d4d903c072430cdd1af7bdb646106b
+pins:
+  "36.0.0":
+    tag: android-16.0.0_r1
+    repos:
+      src/abseil-cpp: 3c03adaaf6c28f5c5c47c753e860b9ac16957b35
+      src/adb: ce023afef190b0cea7f8939e9dd5ee3ee79b137b
+      src/aidl: 5bde6fcffe8e3ac6feca449f7bc3502eed5fc0f5
+      src/art: ed6c006bd06ae060bd9698fd2cb25c4865512ec3
+      src/avb: 5ac0c3a071d811846a62412383dd6e259f341e6e
+      src/base: 99b01a65cc4c104933788b3143285ab6bae65827
+      src/boringssl: ecc1358826150d6a1851c517c325b0e6c0e1b8be
+      src/brotli: ff5a0078401af7fe243d2d39e65c6c145dff0d16
+      src/build: 874fa586c48ae230ebfcff0df1b9c1b004fa8f7c
+      src/core: 68be0c2c0006a0740d0b1809abe4717308f90d15
+      src/dalvik: 0c8569a6f7492b1ba639d33e22fe9cf6f45a80ac
+      src/development: 40c524d8181462af04066324b762d63f87bf0ce1
+      src/e2fsprogs: 8df6ce75f219bbc78f0a7fe546615cac3080c814
+      src/expat: 7b60c4bbc175e795903c47ea9434289eb1d5e605
+      src/extras: 5578b78e335df1e6d19ddb5bdb26639d383cfdfb
+      src/f2fs-tools: 0aa5acbbb6c405a2e5cc02bca6f4eb74d146da12
+      src/fmtlib: b94c6ae0bc963c4f38bce355fe74bec30eaf0be2
+      src/googletest: ed43ae9f2f62df2b77e2400da414c126e7203e7a
+      src/incremental_delivery: c999e3e207ec7633a172d773dda162746b6eaf18
+      src/jsoncpp: 8f65e4b14b9946910e1519231097870b5953b00f
+      src/libbase: 0ac7ea4a65d981166d6e5617e1e4ef0572f774e5
+      src/libpng: 6dd415783321a0c670387f0a5d51776b2c1f629a
+      src/libusb: bbf784ebe5336cc4ca06ec901105d83fc94e0ae8
+      src/libziparchive: 8c51527debf9394dfa515f7e6c7941d2720c6d01
+      src/logging: d78b713380007d3c0dde14712cbcbec27f491ad9
+      src/lz4: f072532f6846b40417438d29daa8183a8e53b63c
+      src/mdnsresponder: 6bebf38f17204fb543e41e8fd7c6444e72314ee5
+      src/mkbootimg: 808ecd09666ffe0ff5800f02af693abce56eb395
+      src/native: 2827a4a16b0340ecd07c2d5a6c89991799b362bb
+      src/openscreen: 3f982cf4871df8771c9d4abe6e9a6f8d829b2736
+      src/pcre: 2ac03c4d54ee863f83ebf7dfacacfbaab7e62325
+      src/protobuf: da98e5a6593907dd162bb6c206570c0afa5326ac
+      src/selinux: 89fe589e4b91ea164f01788724d7e3dd73949a44
+      src/soong: 533c3c2c9166b49caa556518bb547d8f9acf9594
+      src/sqlite: f696549905d99b79c505532e2bf7fc17a64a9671
+      src/tinyxml2: 7485b22521f577cf944e5687361548d8993d8d2c
+      src/unwinding: 525f941b6ccdba2f9df02de8ab7a83aea883d952
+      src/zopfli: 3d0f5fb602c2532d76f4dc71a16fdf59832ad93d
+      src/zstd: d127fae3539665f55751ef320265c22e4c81b583

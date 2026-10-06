@@ -6,7 +6,7 @@
       "buildTools": "36.0.0",
       "compileSdk": "37",
       "jdk": ">=17",
-      "note": "défaut AGP 9.4.1 ; bionic 36.x inexistant chez Lzhiyong (ADR 0002/0003)",
+      "note": "défaut AGP 9.4.1 ; bionic 36.0.0 construit depuis les sources AOSP (ADR 0012) — cellule à mesurer après smoke",
       "status": "untested"
     },
     {
@@ -649,7 +649,7 @@
       "version": "35.0.2"
     }
   ],
-  "generatedAt": "2026-10-05T23:42:04Z",
+  "generatedAt": "2026-10-06T00:46:44Z",
   "profiles": {
     "agp9": {
       "components": [

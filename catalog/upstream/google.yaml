@@ -35,6 +35,7 @@ platforms:
 # build-tools (exigé par la validation AGP — note de recherche 07 § 2). Jamais
 # redistribués eux-mêmes. Le jar 33.0.3 et 34.0.3 sont octet-identiques (mesuré).
 lambda-stubs-source:
+  "36.0.0": { url: build-tools_r36_linux.zip,     sha256: 5d9ac77fb6ff43d9da518a337b4fcf8f9097113df531d99ccefe80ef7ce8250b, root: android-16 }
   "33.0.3": { url: build-tools_r33.0.3-linux.zip, sha256: 533329cc3450850d83433c5103006fc8b9b48f2798bbcc41c78ef3223171d4b1, root: android-13 }
   "34.0.3": { url: build-tools_r34-linux.zip,     sha256: e858c4b60069d0431051b225d384413b1643e1289b00a4825aed347f25bd510f, root: android-14 }
   "35.0.2": { url: build-tools_r35.0.1_linux.zip, sha256: 5993499f3229a021b89f87088c57242aeefaa62316bf3d69da7de40bfd5350f1, root: android-15 }

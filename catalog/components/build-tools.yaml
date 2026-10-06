@@ -39,7 +39,15 @@ smoke:
     aarch64: { status: pending, reason: "pas d'évidence d'exécution — smoke.yml requis" }
     arm:     { status: pending, reason: "idem" }
     x86_64:  { status: pending, reason: "idem" }
+  "36.0.0":
+    aarch64: { status: pending, reason: "construit depuis sources AOSP (ADR 0012) — smoke.yml requis" }
+    arm:     { status: pending, reason: "idem" }
+    x86_64:  { status: pending, reason: "idem" }
 versions:
+  - version: "36.0.0"
+    revision: r1
+    upstream: aosp
+    notes: "PREMIÈRE version construite depuis les sources AOSP (tag android-16.0.0_r1, ADR 0012) — comble le gap AGP 9.x (minimale 36.0.0, ADR 0003) que l'amont Lzhiyong figé ne couvrira jamais ; binaire natif bionic, ELF for Android 30"
   - version: "35.0.2"
     revision: r1
     notes: "défaut AGP 8.13 sans auto-installation (>= 35.0.0) ; aapt2 lisible jusqu'à compileSdk 37 (R2)"

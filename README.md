@@ -14,7 +14,8 @@ cycle de vie.
 
 ```
 catalog/                 SEULE SOURCE DE VÉRITÉ (ajouter une version = une PR ici)
-  upstream/*.yaml        épinglage des amonts (Lzhiyong, Google) : tag + SHA-256
+  upstream/*.yaml        épinglage des amonts (aosp: commits sources, lzhiyong : zips
+                        historiques 33–35, google : pointeurs + jar stub) — ADR 0012
   components/*.yaml      une définition par composant (versions, verify, statut smoke)
   compat.yaml            matrice AGP ↔ build-tools ↔ aapt2 ↔ compileSdk ↔ JDK
   profiles.yaml          profils recommandés (default, minimal, full, agp9)
@@ -114,8 +115,11 @@ les sha256 publiés ne bougent pas entre générations).
 
 ## Licences et redistribution (ADR 0005)
 
-- build-tools / platform-tools : binaires **AOSP Apache-2.0** construits par
+- build-tools / platform-tools : binaires **AOSP Apache-2.0** — depuis 36.0.0,
+  construits par NOTRE pipeline depuis les sources AOSP épinglées
+  (`build/native/`, ADR 0012 ; versions 33–35 : zips amont
   [Lzhiyong/android-sdk-tools](https://github.com/Lzhiyong/android-sdk-tools)
+  immuables, recette Apache-2.0 vendue)
   — redistribués avec `NOTICE` ; le jar `core-lambda-stubs.jar` embarqué est
   un artefact AOSP Apache-2.0 (jamais exécuté, exigé par la validation AGP) ;
 - cmdline-tools et plateformes : **pointeurs directs** `dl.google.com` avec

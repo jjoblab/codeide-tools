@@ -65,6 +65,18 @@ jobs:
         with: { python-version: "3.12" }
       - run: python3 -m pip install --quiet pyyaml jsonschema
 
+      # Cache du pipeline natif (ADR 0012) : sources AOSP (~2 Go), protoc hôte
+      # et répertoires de build — la clé suit les pins du catalogue aosp.yaml.
+      # Inoffensif pour les versions lzhiyong (le cache contient aussi leurs zips).
+      - name: Cache natif AOSP (sources + builds)
+        uses: actions/cache@v4
+        with:
+          path: build/cache
+          key: aosp-${{ hashFiles('catalog/upstream/aosp.yaml') }}-${{ matrix.spec }}
+          restore-keys: |
+            aosp-${{ hashFiles('catalog/upstream/aosp.yaml') }}-
+            aosp-
+
       - name: Fabrication déterministe (${{ matrix.spec }})
         run: bash build/package.sh "${{ matrix.spec }}" --dist dist
 

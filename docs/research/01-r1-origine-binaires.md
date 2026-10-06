@@ -138,3 +138,21 @@ build-tools (donc d'aapt2) par AGP.
   aarch64) : couverte par `smoke.yml` en CI, marquée non vérifiée jusqu'au
   premier passage.
 - Build (b) complet : aucune exécution ici.
+
+## Addendum (2026-10-06) — vérification des tags AOSP & activation de la voie (b)
+
+Directive propriétaire : « je ne veux pas dépendre de Lzhiyong ». Mesures
+complémentaires (`git ls-remote` sur android.googlesource.com) :
+
+- `refs/tags/platform-tools-*` sur `platform/frameworks/base` : **s'arrêtent à
+  35.0.2** (33.0.4, 34.0.0→34.0.5, 35.0.1, 35.0.2) — Google n'a plus publié de
+  tags `platform-tools-*` ensuite : c'est la cause profonde du gel de
+  Lzhiyong (août 2024), pas un abandon de l'auteur seul.
+- Les versions 36.x/37.x restent atteignables par les **refs de release** :
+  `android-16.0.0_r1`→`r4` (build-tools 36.x), `android-17.0.0_r1` (37.x) —
+  présentes sur les 39 dépôts de `repos.json` (résolution complète, commits
+  journalisés dans `catalog/upstream/aosp.yaml`).
+
+Décision : voie (b) **activée** — ADR 0012 (amont `aosp`, recette vendue dans
+`build/native/`, image Docker épinglée, NDK r27c, pins par commit). Les
+versions 33–35 restent sur la voie (a) (octets immuables déjà publiés).

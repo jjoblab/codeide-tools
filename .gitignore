@@ -11,3 +11,6 @@ work/
 !tests/golden/archives/*.tar.xz
 smoke-proof.txt
 upstream-diff.md
+
+# artefacts python
+__pycache__/

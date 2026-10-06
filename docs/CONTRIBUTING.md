@@ -6,28 +6,33 @@ qu'aux fichiers de catalogue ; tout le reste est automatique.
 
 ## 1. Épingler l'amont
 
-### Composant natif (build-tools / platform-tools)
+### Composant natif (build-tools / platform-tools) — amont AOSP (voie par défaut, ADR 0012)
 
-L'amont est [`Lzhiyong/android-sdk-tools`](https://github.com/Lzhiyong/android-sdk-tools).
-Téléchargez le zip de chaque architecture visée et calculez SHA-256 + taille :
+Les nouvelles versions se construisent **depuis les sources AOSP** (plus de
+dépendance aux releases Lzhiyong, figées à 35.0.2). Résolvez le pin : le tag
+de release Android correspondant à la version (36.x → `android-16.0.0_rN`,
+37.x → `android-17.0.0_rN`…) — vérifiez-le sur un dépôt AOSP :
 
 ```sh
-tag=36.0.0   # exemple : tag amont
-for arch in aarch64 arm x86_64; do
-  curl -fSL -o /tmp/static-$arch.zip \
-    "https://github.com/Lzhiyong/android-sdk-tools/releases/download/$tag/android-sdk-tools-static-$arch.zip"
-  sha256sum /tmp/static-$arch.zip; stat -c%s /tmp/static-$arch.zip
-done
+git ls-remote --tags https://android.googlesource.com/platform/frameworks/base \
+  'refs/tags/android-16.0.0_r*'
 ```
 
-Ajoutez l'entrée dans `catalog/upstream/lzhiyong.yaml` (`pins`) :
+Résolvez les 39 dépôts aux commits du tag (script jumelle de résolution —
+voir `build/native/README.md`), puis écrivez l'entrée dans
+`catalog/upstream/aosp.yaml` (`pins`) :
 
 ```yaml
   "36.0.0":
-    aarch64: { sha256: <somme>, size: <taille> }
-    arm:     { sha256: <somme>, size: <taille> }
-    x86_64:  { sha256: <somme>, size: <taille> }
+    tag: android-16.0.0_r1
+    repos:
+      src/base: 99b01a65cc4c…
+      # … 39 dépôts, commit par dépôt
 ```
+
+et déclarez `upstream: aosp` dans l'entrée de version du composant
+(étape 2). **Pas de pin binaire** : le sha du zip construit est journalisé à
+la fabrication (provenance) — les pins sont sources + recette + NDK + image.
 
 Ajoutez le jar `core-lambda-stubs.jar` de la version : extrayez-le du zip
 Google **de la même version** (`build-tools_r<version>_linux.zip`, champ
@@ -40,6 +45,12 @@ unzip -p build-tools_r36_linux.zip android-16/core-lambda-stubs.jar \
 
 Renseignez `catalog/upstream/google.yaml` (`lambda-stubs-source`) — le pin du
 zip Google sert de provenance.
+
+### Composant natif — amont Lzhiyong (voie historique, versions 33–35 uniquement)
+
+Les versions 33–35 sont immuables et restent épinglées sur les zips
+`Lzhiyong/android-sdk-tools` (octets publiés — jamais de reconstruction).
+Toute NOUVELLE version passe par la voie AOSP ci-dessus.
 
 ### Composant pointeur (cmdline-tools / platform)
 
@@ -58,6 +69,7 @@ téléchargement intégral) + taille + racine du zip.
 ```yaml
   - version: "36.0.0"
     revision: r1
+    upstream: aosp          # requis pour la voie AOSP (sinon : amont composant)
     notes: "…"
 ```
 

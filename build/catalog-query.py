@@ -3,6 +3,9 @@
 
 Usage :
   catalog-query.py pin <amont> <version> <champ>          # sha256/size du zip amont
+  catalog-query.py arch-pin <amont> <version> <arch> <champ>
+  catalog-query.py aosp <version> <quoi>                  # pins-json | tag | ndk | api
+  catalog-query.py amont-version <id> <version>           # amont effectif (surcharge par version)
   catalog-query.py versions <id>                          # versions d'un composant
   catalog-query.py champ <id> <clé>                       # champ simple (install-path…)
   catalog-query.py lambda <version>                       # jar stub : chemin + sha256
@@ -10,6 +13,7 @@ Usage :
 from __future__ import annotations
 
 import hashlib
+import json
 import sys
 from pathlib import Path
 
@@ -57,6 +61,29 @@ def main() -> None:
         _, name, version, arch, field = args
         pin = upstream(name)["pins"][version][arch]
         print(pin[field])
+    elif cmd == "aosp":
+        # aosp <version> <quoi> — pins source AOSP (ADR 0012)
+        _, version, what = args
+        doc = upstream("aosp")
+        pin = doc["pins"][version]
+        if what == "pins-json":
+            print(json.dumps({"tag": pin["tag"], "repos": pin["repos"]},
+                             ensure_ascii=False))
+        elif what == "tag":
+            print(pin["tag"])
+        else:  # ndk, api, image… : champs du haut niveau + surcharge possible
+            val = pin.get(what, doc.get(what))
+            print(val if val is not None else "")
+    elif cmd == "amont-version":
+        # amont effectif d'une version : surcharge de l'entrée de version,
+        # sinon champ composant (compat : lzhiyong pour 33–35)
+        _, cid, version = args
+        comp = component(cid)
+        for v in comp.get("versions", []):
+            if v["version"] == version:
+                print(v.get("upstream") or comp.get("upstream", "lzhiyong"))
+                return
+        raise SystemExit(f"version inconnue : {cid}@{version}")
     elif cmd == "versions":
         for v in component(args[1]).get("versions", []):
             print(f"{v['version']}\t{v.get('revision', 'r1')}")

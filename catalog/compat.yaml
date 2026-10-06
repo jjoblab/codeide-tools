@@ -10,7 +10,7 @@ entries:
     compileSdk: "37"
     jdk: ">=17"
     status: untested
-    note: "défaut AGP 9.4.1 ; bionic 36.x inexistant chez Lzhiyong (ADR 0002/0003)"
+    note: "défaut AGP 9.4.1 ; bionic 36.0.0 construit depuis les sources AOSP (ADR 0012) — cellule à mesurer après smoke"
 
   - agp: "9.4.1"
     buildTools: "35.0.2"

@@ -15,7 +15,7 @@ ko_() { printf 'ÉCHEC : %s\n' "$1" >&2; FAIL=$((FAIL+1)); }
 
 # 1. Syntaxe + shellcheck de tous les scripts shell (CLI POSIX, shim, build).
 etape "shellcheck (seuil : warning)"
-for f in cli/codeide-sdk scripts/codeidesetup build/package.sh; do
+for f in cli/codeide-sdk scripts/codeidesetup build/package.sh build/native/build-native.sh; do
   if $SHELLCHECK -S warning "$f"; then ok_ "$f"; else ko_ "$f"; fi
 done
 
@@ -29,11 +29,13 @@ for f in sorted((cat/"components").glob("*.yaml")):
     c = yaml.safe_load(f.read_text())
     assert c["id"] and c["install-path"] and c["verify"]["cmd"], f
     ids.add(c["id"])
-    ups = yaml.safe_load((cat/"upstream"/f"{c['upstream']}.yaml").read_text())
-    section = {"cmdline-tools": "cmdline-tools", "platform": "platforms"}.get(c["id"], "pins")
-    pins = ups[section]
+    # L'amont peut être surchargé par version (aosp — ADR 0012).
     for v in c.get("versions", []):
-        assert v["version"] in pins, f"{c['id']}@{v['version']} sans pin amont"
+        up_v = v.get("upstream") or c["upstream"]
+        ups_v = yaml.safe_load((cat/"upstream"/f"{up_v}.yaml").read_text())
+        section_v = {"cmdline-tools": "cmdline-tools", "platform": "platforms"}.get(c["id"], "pins")
+        pins_v = ups_v[section_v]
+        assert v["version"] in pins_v, f"{c['id']}@{v['version']} sans pin amont ({up_v})"
 profiles = yaml.safe_load((cat/"profiles.yaml").read_text())
 comps = {f"{v['version']}" for f in (cat/"components").glob("*.yaml")
          for v in yaml.safe_load(f.read_text()).get("versions", [])}

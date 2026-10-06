@@ -87,6 +87,12 @@ fetch_zip() { # amont tag arch — le chemin du zip est ÉCHOS sur stdout,
   mkdir -p "$CACHE/$tag"
   case $amont in
     lzhiyong) url="https://github.com/Lzhiyong/android-sdk-tools/releases/download/$tag/$name" ;;
+    aosp)
+      # Construction native depuis les sources AOSP épinglées (ADR 0012) —
+      # pas de téléchargement : le zip est fabriqué par build/native/.
+      info "construction native (aosp) $tag/$arch" >&2
+      bash "$REPO/build/native/build-native.sh" "$tag" "$arch" "$CACHE/$tag/$name" >&2
+      echo "$CACHE/$tag/$name"; return ;;
     *) die "amont inconnu : $amont" ;;
   esac
   info "téléchargement $tag/$name" >&2
@@ -115,10 +121,19 @@ make_archive() { # staging arche-relative-sortie
 
 package_native() { # id version revision arch
   local id=$1 version=$2 rev=$3 arch=$4
-  local tag_up=$version   # tag amont Lzhiyong = version du composant
-  local zip; zip="$(fetch_zip lzhiyong "$tag_up" "$arch")"
+  local tag_up=$version   # tag amont = version du composant
+  # Amont effectif : surcharge par version (aosp — ADR 0012), sinon composant.
+  local amont zip
+  amont="$(python3 build/catalog-query.py amont-version "$id" "$version")"
+  zip="$(fetch_zip "$amont" "$tag_up" "$arch")"
   [ -f "$zip" ] || die "zip amont introuvable : $tag_up/$arch"
-  check_pin "$zip" "$tag_up" "$arch"
+  if [ "$amont" = aosp ]; then
+    # Pas de pin binaire amont : le sha du zip construit est un résultat
+    # journalisé ; les pins sources/récipe/NDK/image sont au catalogue.
+    info "amont aosp ($tag_up) : zip construit, sha256 $(sha256_of "$zip")"
+  else
+    check_pin "$zip" "$tag_up" "$arch"
+  fi
 
   local stage="$WORK/stage-$id-$version-$arch"
   rm -rf "$stage"; mkdir -p "$stage"
