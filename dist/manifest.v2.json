@@ -352,7 +352,7 @@
     },
     {
       "arch": "arm",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "build-tools",
       "installPath": "build-tools/36.0.0",
@@ -377,7 +377,7 @@
     },
     {
       "arch": "x86_64",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "build-tools",
       "installPath": "build-tools/36.0.0",
@@ -724,7 +724,7 @@
       "version": "35.0.2"
     }
   ],
-  "generatedAt": "2026-10-06T12:01:04Z",
+  "generatedAt": "2026-10-06T12:08:28Z",
   "profiles": {
     "agp9": {
       "components": [

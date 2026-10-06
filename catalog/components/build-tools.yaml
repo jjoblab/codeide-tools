@@ -41,8 +41,8 @@ smoke:
     x86_64:  { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37429101295 — smoke.yml bionic x86_64 (install + verify --deep, téléchargement réel)" }
   "36.0.0":
     aarch64: { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37459176909 — porte bionic publish.yml (install+verify+aapt2)" }
-    arm:     { status: pending, reason: "r1 : __tls_get_addr@LIBC_Q absent du bionic API 28 du banc (37439785400) ; r2 : R_ARM_TLS_TPOFF32 inconnue du chargeur (37449355987) ; r3 : exécutable STATIQUE, aucun chargeur — à re-tester" }
-    x86_64:  { status: pending, reason: "r3 reconstruit (statique ET_EXEC, profil Lzhiyong) — octets ≠ r2, re-attestation requise (smoke)" }
+    arm:     { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37460438610 — smoke.yml bionic arm (install + verify --deep, téléchargement réel) — CPU émulé qemu-arm, bionique réel" }
+    x86_64:  { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37460438610 — smoke.yml bionic x86_64 (install + verify --deep, téléchargement réel)" }
 versions:
   - version: "36.0.0"
     revision: r3
