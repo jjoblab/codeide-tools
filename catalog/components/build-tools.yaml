@@ -40,7 +40,7 @@ smoke:
     arm:     { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37439785400 — smoke.yml bionic arm (install + verify --deep, téléchargement réel) — CPU émulé qemu-arm, bionique réel" }
     x86_64:  { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37429101295 — smoke.yml bionic x86_64 (install + verify --deep, téléchargement réel)" }
   "36.0.0":
-    aarch64: { status: pending, reason: "r2 reconstruit (TLS initial-exec) — octets ≠ r1, re-attestation requise (porte publish)" }
+    aarch64: { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37447551014 — porte bionic publish.yml (install+verify+aapt2)" }
     arm:     { status: pending, reason: "r1 : banc armv7 (Termux, bionic API 28) sans __tls_get_addr@LIBC_Q (API 29) — échec chargeur, run 37439785400 ; r2 (TLS initial-exec) : à re-tester" }
     x86_64:  { status: pending, reason: "r2 reconstruit (TLS initial-exec) — octets ≠ r1, re-attestation requise (smoke)" }
 versions:

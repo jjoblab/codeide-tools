@@ -59,6 +59,21 @@
     "sha256": "f6dac5178407af1a2e742c900917983c03cc7d4bf250232ac016742e24dbfe43",
     "size": 3133688
   },
+  "build-tools-36.0.0-r2-aarch64": {
+    "archive": "build-tools-36.0.0-r2-aarch64.tar.xz",
+    "sha256": "6973ad3fe06056b50e109a2cb86e48ec3d8dcffc992042f43823e962cdafbbb1",
+    "size": 3060708
+  },
+  "build-tools-36.0.0-r2-arm": {
+    "archive": "build-tools-36.0.0-r2-arm.tar.xz",
+    "sha256": "1a04f78b0bf06ab840204c56875d7c0255777e39889e3d9c82360d3b0c2ef9ab",
+    "size": 2812348
+  },
+  "build-tools-36.0.0-r2-x86_64": {
+    "archive": "build-tools-36.0.0-r2-x86_64.tar.xz",
+    "sha256": "e2b98c9a1b19f413147abb247227cad5c22590a8b41618fc31da08c388b26f2b",
+    "size": 3134388
+  },
   "platform-tools-33.0.3-r1-aarch64": {
     "archive": "platform-tools-33.0.3-r1-aarch64.tar.xz",
     "sha256": "bed236af4af186a68451bc3536377926e6dd5f583f7517b7ad3cc06684fe534f",

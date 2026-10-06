@@ -326,6 +326,81 @@
       "version": "35.0.2"
     },
     {
+      "arch": "aarch64",
+      "channel": "stable",
+      "critical": true,
+      "id": "build-tools",
+      "installPath": "build-tools/36.0.0",
+      "license": "Apache-2.0",
+      "minAndroidApi": 34,
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r2",
+      "sha256": "6973ad3fe06056b50e109a2cb86e48ec3d8dcffc992042f43823e962cdafbbb1",
+      "size": 3060708,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/build-tools-36.0.0-r2/build-tools-36.0.0-r2-aarch64.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "build-tools/36.0.0/aapt2 version",
+        "expect": "Android Asset Packaging Tool"
+      },
+      "version": "36.0.0"
+    },
+    {
+      "arch": "arm",
+      "channel": "preview",
+      "critical": true,
+      "id": "build-tools",
+      "installPath": "build-tools/36.0.0",
+      "license": "Apache-2.0",
+      "minAndroidApi": 34,
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r2",
+      "sha256": "1a04f78b0bf06ab840204c56875d7c0255777e39889e3d9c82360d3b0c2ef9ab",
+      "size": 2812348,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/build-tools-36.0.0-r2/build-tools-36.0.0-r2-arm.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "build-tools/36.0.0/aapt2 version",
+        "expect": "Android Asset Packaging Tool"
+      },
+      "version": "36.0.0"
+    },
+    {
+      "arch": "x86_64",
+      "channel": "preview",
+      "critical": true,
+      "id": "build-tools",
+      "installPath": "build-tools/36.0.0",
+      "license": "Apache-2.0",
+      "minAndroidApi": 34,
+      "requires": [
+        "jdk>=17"
+      ],
+      "revision": "r2",
+      "sha256": "e2b98c9a1b19f413147abb247227cad5c22590a8b41618fc31da08c388b26f2b",
+      "size": 3134388,
+      "sources": [
+        {
+          "url": "https://github.com/jjoblab/codeide-tools/releases/download/build-tools-36.0.0-r2/build-tools-36.0.0-r2-x86_64.tar.xz"
+        }
+      ],
+      "verify": {
+        "cmd": "build-tools/36.0.0/aapt2 version",
+        "expect": "Android Asset Packaging Tool"
+      },
+      "version": "36.0.0"
+    },
+    {
       "arch": "any",
       "archiveRoot": "cmdline-tools",
       "channel": "stable",
@@ -649,7 +724,7 @@
       "version": "35.0.2"
     }
   ],
-  "generatedAt": "2026-10-06T09:13:00Z",
+  "generatedAt": "2026-10-06T10:15:16Z",
   "profiles": {
     "agp9": {
       "components": [
