@@ -107,9 +107,9 @@ def apply_patches(root: Path) -> None:
     soong_inc.mkdir(parents=True, exist_ok=True)
     shutil.copy2(p / "misc/platform_tools_version.h", soong_inc)
 
-    sed(r"s#frameworks/base/tools/aapt2/Configuration.proto#Configuration.proto#g",
-        src / "base/tools/aapt2/ApkInfo.proto")
     sed(r"s#frameworks/base/tools/aapt2/Resources.proto#Resources.proto#g",
+        src / "base/tools/aapt2/ApkInfo.proto")
+    sed(r"s#frameworks/base/tools/aapt2/Configuration.proto#Configuration.proto#g",
         src / "base/tools/aapt2/Resources.proto")
     sed(r"s#frameworks/base/tools/aapt2/Configuration.proto#Configuration.proto#g",
         src / "base/tools/aapt2/ResourcesInternal.proto")
