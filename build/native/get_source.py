@@ -37,27 +37,46 @@ def clone_at_ref(url: str, tag: str, pinned_commit: str, dest: Path) -> None:
     """Clone le dépôt au tag AOSP puis VÉRIFIE que le commit résolu égale le
     pin. android.googlesource.com refuse le fetch par SHA brut (HTTP 500,
     constaté 2026-10-06) : on fetch le tag, on contrôle l'immuabilité ensuite —
-    un tag déplacé amont provoque un échec NET (jamais de repli silencieux)."""
+    un tag déplacé amont provoque un échec NET (jamais de repli silencieux).
+
+    Robustesse (constat r3, run 37452630148) : tout échec AVANT le checkout
+    laisse un dépôt initialisé SANS commit ; l'invocation suivante (arche
+    suivante) tombait alors dans la branche « .git existe » et mourait d'un
+    « rev-parse HEAD » code 128 obscurs au lieu du message réel. Un échec
+    nettoie désormais sa moitié de clone (le message d'origine est rétabli
+    à chaque exécution suivante)."""
     if (dest / ".git").exists():
-        head = subprocess.run(GIT + ["rev-parse", "HEAD"], cwd=dest,
-                              capture_output=True, text=True, check=True)
-        if head.stdout.strip() == pinned_commit:
+        head = subprocess.run(
+            GIT + ["rev-parse", "HEAD"], cwd=dest, capture_output=True,
+            text=True)
+        if head.returncode == 0 and head.stdout.strip() == pinned_commit:
             print(f"= {dest.name:35s} déjà à {pinned_commit[:12]}")
             return
-        raise SystemExit(f"{dest} existe à un autre commit — retirez-le")
-    dest.mkdir(parents=True)
-    run(GIT + ["init", "-q", str(dest)])
-    run(GIT + ["-C", str(dest), "fetch", "-q", "--depth", "1",
-               url, f"refs/tags/{tag}"])
-    resolved = subprocess.run(
-        GIT + ["-C", str(dest), "rev-parse", "FETCH_HEAD^{commit}"],
-        capture_output=True, text=True, check=True).stdout.strip()
-    if resolved != pinned_commit:
-        raise SystemExit(
-            f"IMMUABILITÉ : {dest.name} tag {tag} résout {resolved[:12]} "
-            f"≠ pin catalogue {pinned_commit[:12]} — l'amont a déplacé le tag ; "
-            f"re-résolvez les pins (catalog/upstream/aosp.yaml)")
-    run(GIT + ["-C", str(dest), "checkout", "-q", "--detach", resolved])
+        if head.returncode != 0:
+            # dépôt sans commit (clone interrompu d'un run précédent) :
+            # purge et RECLONE — le message d'origine est reproduit.
+            import shutil
+            shutil.rmtree(dest)
+        else:
+            raise SystemExit(f"{dest} existe à un autre commit — retirez-le")
+    try:
+        dest.mkdir(parents=True)
+        run(GIT + ["init", "-q", str(dest)])
+        run(GIT + ["-C", str(dest), "fetch", "-q", "--depth", "1",
+                   url, f"refs/tags/{tag}"])
+        resolved = subprocess.run(
+            GIT + ["-C", str(dest), "rev-parse", "FETCH_HEAD^{commit}"],
+            capture_output=True, text=True, check=True).stdout.strip()
+        if resolved != pinned_commit:
+            raise SystemExit(
+                f"IMMUABILITÉ : {dest.name} tag {tag} résout {resolved[:12]} "
+                f"≠ pin catalogue {pinned_commit[:12]} — l'amont a déplacé le tag ; "
+                f"re-résolvez les pins (catalog/upstream/aosp.yaml)")
+        run(GIT + ["-C", str(dest), "checkout", "-q", "--detach", resolved])
+    except BaseException:
+        import shutil
+        shutil.rmtree(dest, ignore_errors=True)
+        raise
 
 
 def sed(pattern: str, target: Path) -> None:

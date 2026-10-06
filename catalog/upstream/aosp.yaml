@@ -57,5 +57,5 @@ pins:
       src/tinyxml2: 7485b22521f577cf944e5687361548d8993d8d2c
       src/unwinding: 525f941b6ccdba2f9df02de8ab7a83aea883d952
       src/zopfli: 3d0f5fb602c2532d76f4dc71a16fdf59832ad93d
-      src/zlib: 9e5077ccee26448bb681d648eb542fff03352bfc
+      src/zlib: c1f2595cae6ef4703003a8c9ea53239a10d7a1dd
       src/zstd: d127fae3539665f55751ef320265c22e4c81b583
