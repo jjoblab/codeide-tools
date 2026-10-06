@@ -85,6 +85,14 @@ def apply_git_patches(root: Path) -> None:
         "dex_file.cc.patch": 1,
         "instruction_set.h.patch": 1,
         "mem_map.cc.patch": 1,
+        # android-16 : packLocale/packScript sont constexpr mais contiennent
+        # un reinterpret_cast (jamais autorisé en expression constante) —
+        # ill-formed NDR ; Clang 19+ (NDK r28) le diagnostique en ERREUR
+        # par défaut, le toolchain Soong d'AOSP l'accepte. Amont main
+        # identique (vérifié 2026-10-06) : rien à porter, on vend la
+        # correction — les fonctions restent inline, tous les appels
+        # (LocaleData.cpp) sont à l'exécution.
+        "LocaleDataLookup.h.patch": 1,
     }
     base = ["patch", "--batch", "--forward", "--no-backup-if-mismatch",
             "-d", str(real_src)]
