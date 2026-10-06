@@ -3,25 +3,34 @@
  *
  * __system_property_serial et __system_property_area_serial sont exportées
  * par libc depuis API 19/21 et 23 respectivement (bionic libc.map.txt,
- * vérifié sur android-11.0.0_r1 : « introduced=23 », « introduced-arm=19
- * introduced-arm64=21 ») — donc disponibles sur tout appareil API 30+
- * (contrat minAndroidApi du composant) — mais les en-têtes NDK curatés ne
- * les déclarent PAS (aucun niveau d'API, vérifié jusqu'à 34). Les sources
- * android-16 de libbase (properties.cpp) les utilisent : sans déclaration,
- * la compilation croisée échoue.
+ * vérifié sur android-11.0.0_r1) — donc disponibles sur tout appareil
+ * API 30+ — mais les en-têtes NDK curatés ne les déclarent PAS (vérifié
+ * jusqu'à API 34). Les sources android-16 les utilisent (libbase, liblog,
+ * libcutils/trace-dev.inc…).
  *
- * C'est une DÉCLARATION (pas une redéfinition) : l'édition de liens résout
- * les symboles contre la libc de l'appareil, comme pour toute fonction
- * système — aucun code n'est substitué.
+ * AUCUNE inclusion ici : ce fichier est force-inclus en TÊTE de toutes les
+ * unités C/CXX — une inclusion (p. ex. <sys/system_properties.h>) pourrait
+ * tirer <string.h> AVANT le « #undef _GNU_SOURCE » de certains fichiers
+ * amont (libbase/posix_strerror_r.cpp), figeant la variante GNU de
+ * strerror_r (char*) et cassant leur compilation. D'où : types builtin
+ * (__UINT32_TYPE__), prop_info forward-déclaré (le vrai typedef amont
+ * « typedef struct prop_info prop_info; » est compatible), extern "C" manuel.
+ *
+ * DÉCLARATIONS pures : l'édition de liens résout les symboles contre la
+ * libc de l'appareil — aucun code substitué.
  */
 #pragma once
 
-#include <sys/system_properties.h>  /* prop_info */
+struct prop_info;
 
-__BEGIN_DECLS
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-uint32_t __system_property_area_serial(void);
+__UINT32_TYPE__ __system_property_area_serial(void);
 
-uint32_t __system_property_serial(const prop_info* __pi);
+__UINT32_TYPE__ __system_property_serial(const struct prop_info* __pi);
 
-__END_DECLS
+#ifdef __cplusplus
+}
+#endif

@@ -174,6 +174,30 @@ def apply_patches(root: Path) -> None:
             print("= liblog/logger_write.cpp : _with_timestamp renommée (API 37) "
                   "+ déclaration avancée")
 
+    # libbase/posix_strerror_r.cpp : le fichier amont fait « #undef
+    # _GNU_SOURCE ; #include <string.h> » pour obtenir la variante POSIX
+    # (int). Si string.h a déjà été inclus plus tôt (force-include, en-têtes
+    # C++…), la variante GNU (char*) reste déclarée et le return échoue.
+    # Portage robuste : surcharge résolue par le type de retour EFFECTIF.
+    perr = src / "libbase/posix_strerror_r.cpp"
+    if perr.exists():
+        pe = perr.read_text(encoding="utf-8", errors="replace")
+        if "strerror_r_ok" not in pe:
+            helpers = (
+                "inline int strerror_r_ok(int rc) { return rc; }  /* POSIX */\n"
+                "inline int strerror_r_ok(char* buf) { return buf ? 0 : -1; }"
+                "  /* GNU (portage ADR 0012) */\n\n")
+            anchor = 'extern "C" int posix_strerror_r(int errnum, char* buf, size_t buflen) {'
+            if anchor in pe:
+                pe = pe.replace(anchor, helpers + anchor, 1)
+            old = "  return strerror_r(errnum, buf, buflen);"
+            if old in pe:
+                pe = pe.replace(
+                    old,
+                    "  return strerror_r_ok(strerror_r(errnum, buf, buflen));", 1)
+                perr.write_text(pe, encoding="utf-8")
+                print("= libbase/posix_strerror_r.cpp : surcharge GNU/POSIX insérée")
+
     # googletest → boringssl/third_party/googletest (lien symbolique)
     run(["ln", "-sfn", str(src / "googletest"),
          str(src / "boringssl/src/third_party/googletest")])
