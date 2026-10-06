@@ -15,6 +15,7 @@
 FROM ubuntu:24.04@sha256:f610ab94648195aa356059f5b41d6085c9d4d903c072430cdd1af7bdb646106b
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential pkg-config \
         git golang-go bison flex cmake ninja-build \
         python3 python3-pip unzip file xz-utils \
         ca-certificates \
