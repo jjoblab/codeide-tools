@@ -89,8 +89,9 @@ docker run --rm \
       --protoc /work/recipe-mirror/src/protobuf/build/protoc
   '
 
-# 4) le zip est écrit par build.py à CWD/build/… (absolu → /work)
-zip_in="$WORK/android-sdk-tools-$arch.zip"
+# 4) le zip est écrit par build.py à --build/… (binary_dir.parent, cf.
+#    build.py complete()) : /work/build-<arch>/android-sdk-tools-<arch>.zip
+zip_in="$WORK/build-$arch/android-sdk-tools-$arch.zip"
 [ -f "$zip_in" ] || { echo "zip natif introuvable : $zip_in" >&2; exit 1; }
 cp -f "$zip_in" "$out"
 sha="$(sha256sum "$out" | cut -d' ' -f1)"
