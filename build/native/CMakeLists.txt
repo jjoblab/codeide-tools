@@ -34,8 +34,18 @@ add_compile_options(
 )
 
 # set global cflags and cxxflags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fcolor-diagnostics -fPIC -Wno-attributes")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcolor-diagnostics -fPIC -Wno-attributes")
+# -ftls-model=initial-exec : les variables thread_local du code lié (exécutable
+#   + bibliothèques statiques) deviennent des accès directs TP-relatif — la
+# référence au symbole __tls_get_addr@LIBC_Q (modèle general-dynamic, émis par
+# défaut avec -fPIC) DISPARAÎT. Raison (ADR 0012, révision r2) : le banc armv7
+# disponible (Termux, bionic API 28) n'exporte pas __tls_get_addr (introduit
+# API 29, bloc LIBC_Q — bionic/libc.map.txt android-16.0.0_r1) alors que les
+# bancs aarch64/x86_64 (bionic actuel) l'ont ; initial-exec est équivalent
+# pour le TLS défini DANS l'exécutable (aucun dlopen de TLS ici), plus rapide,
+# et élargit la compatibilité bionic. Vérifié : le r1 arm échouait au
+# chargeur du banc (« cannot locate symbol __tls_get_addr », run 37439785400).
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fcolor-diagnostics -fPIC -Wno-attributes -ftls-model=initial-exec")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcolor-diagnostics -fPIC -Wno-attributes -ftls-model=initial-exec")
 # static link (may need some patches)
 #set(CMAKE_EXE_LINKER_FLAGS "-static")
 
