@@ -198,6 +198,30 @@ def apply_patches(root: Path) -> None:
                 perr.write_text(pe, encoding="utf-8")
                 print("= libbase/posix_strerror_r.cpp : surcharge GNU/POSIX insérée")
 
+    # CombinedIterator.h (androidfw android-16) : operator* retourne le proxy
+    # RefPair PAR VALEUR (prvalue). La libc++ du NDK r27c instancie iter_swap
+    # avec swap(*declval<It>(), *declval<It>()) — des rvalues — que le swap
+    # ami (RefPair&, RefPair&) ne lie pas (échec « no matching function »,
+    # std::inplace_merge sur CombinedIterator). Surcharge par valeur : les
+    # membres du proxy RÉFÉRENCENT les données réelles (paires de références),
+    # l'échange membre à membre reste correct ; pas d'ambiguïté (liaison par
+    # référence bat la copie pour les lvalues).
+    comb = src / "base/libs/androidfw/include/androidfw/CombinedIterator.h"
+    if comb.exists():
+        cb = comb.read_text(encoding="utf-8", errors="replace")
+        anchor = "  friend void swap(RefPair& l, RefPair& r) {"
+        extra = (
+            "  friend void swap(RefPair l, RefPair r) {"
+            "  /* portage ADR 0012 : prvalues du iter_swap libc++ NDK */\n"
+            "    using std::swap;\n"
+            "    swap(l.first, r.first);\n"
+            "    swap(l.second, r.second);\n"
+            "  }\n")
+        if "portage ADR 0012 : prvalues" not in cb and anchor in cb:
+            cb = cb.replace(anchor, extra + anchor, 1)
+            comb.write_text(cb, encoding="utf-8")
+            print("= CombinedIterator.h : surcharge swap(par valeur) ajoutée")
+
     # googletest → boringssl/third_party/googletest (lien symbolique)
     run(["ln", "-sfn", str(src / "googletest"),
          str(src / "boringssl/src/third_party/googletest")])
