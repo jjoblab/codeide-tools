@@ -171,8 +171,8 @@ jobs:
 
       - name: Publier main (catalogue + manifestes committés)
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "jjoblab"
+          git config user.email "150948254+jjoblab@users.noreply.github.com"
           git add manifest.json docs/COMPAT.md dist/manifest.v2.json build/artifacts.json catalog 2>/dev/null || true
           git diff --cached --quiet || git commit -m "chore: publie ${{ inputs.components }} (manifestes régénérés)"
           git push
@@ -185,8 +185,8 @@ jobs:
           cp dist/manifest.v2.json gh-pages/manifests/v2/latest.json
           cd gh-pages
           git init -q -b gh-pages
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "jjoblab"
+          git config user.email "150948254+jjoblab@users.noreply.github.com"
           git add -A
           git commit -qm "manifeste v2 $ts"
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
