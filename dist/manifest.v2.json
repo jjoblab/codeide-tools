@@ -5,9 +5,10 @@
       "agp": "9.4.1",
       "buildTools": "36.0.0",
       "compileSdk": "37",
+      "evidence": "bionique : runs 37459176909 (porte publish aarch64) + 37460438610 (smoke 3 arches : aarch64/x86_64 natifs, arm qemu — install + verify --deep) ; binaires STATIQUES r3 (profil Lzhiyong, ADR 0012)",
       "jdk": ">=17",
-      "note": "défaut AGP 9.4.1 ; bionic 36.0.0 construit depuis les sources AOSP (ADR 0012) — cellule à mesurer après smoke",
-      "status": "untested"
+      "note": "défaut AGP 9.4.1 ; cellule AGP complète (build hôte) à mesurer — les binaires bioniques r3 sont attestés sur les trois arches",
+      "status": "tested"
     },
     {
       "aapt2": "35.0.2",
@@ -724,7 +725,7 @@
       "version": "35.0.2"
     }
   ],
-  "generatedAt": "2026-10-06T12:08:28Z",
+  "generatedAt": "2026-10-06T12:09:32Z",
   "profiles": {
     "agp9": {
       "components": [

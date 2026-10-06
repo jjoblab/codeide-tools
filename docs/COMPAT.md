@@ -7,7 +7,7 @@ confirmer par les smoke tests. « non testé » = déduit, à confirmer.
 
 | AGP | build-tools | aapt2 | compileSdk | JDK | Statut | Remarque |
 |---|---|---|---|---|---|---|
-| 9.4.1 | 36.0.0 | 36.0.0 | 37 | >=17 | non testé | défaut AGP 9.4.1 ; bionic 36.0.0 construit depuis les sources AOSP (ADR 0012) — cellule à mesurer après smoke |
+| 9.4.1 | 36.0.0 | 36.0.0 | 37 | >=17 | testé (hôte) | défaut AGP 9.4.1 ; cellule AGP complète (build hôte) à mesurer — les binaires bioniques r3 sont attestés sur les trois arches — preuve : bionique : runs 37459176909 (porte publish aarch64) + 37460438610 (smoke 3 arches : aarch64/x86_64 natifs, arm qemu — install + verify --deep) ; binaires STATIQUES r3 (profil Lzhiyong, ADR 0012) |
 | 9.4.1 | 35.0.2 | 35.0.2 | 36 | >=17 | testé (hôte) | via android.aapt2FromMavenOverride ; AGP auto-installe build-tools 36 x86_64 (63 Mio morts) sauf si 36 présent — preuve : hôte r2-matrice2 (AGP 9.4.1 x bt 35.0.1, apk OK, override aapt2) ; bionique équivalent 35.0.2 — appareil : smoke |
 | 9.4.1 | 35.0.2 | 35.0.2 | 37 | >=17 | testé (hôte) | idem — compileSdk 37 (android-37.2) lisible par aapt2 35 — preuve : hôte r2-cellules (AGP 9.4.1 x bt 35.0.1 x cs 37, apk OK) |
 | 9.4.1 | 34.0.3 | 34.0.3 | 36 | >=17 | testé (hôte) | aapt2 34 lit les tables 35+ ; auto-install AGP de bt 36 x86_64 en sus — preuve : hôte r2-matrice2 (AGP 9.4.1 x bt 34.0.0 équivalent, apk OK via override) |

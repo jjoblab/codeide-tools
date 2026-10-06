@@ -9,8 +9,9 @@ entries:
     aapt2: "36.0.0"
     compileSdk: "37"
     jdk: ">=17"
-    status: untested
-    note: "défaut AGP 9.4.1 ; bionic 36.0.0 construit depuis les sources AOSP (ADR 0012) — cellule à mesurer après smoke"
+    status: tested
+    evidence: "bionique : runs 37459176909 (porte publish aarch64) + 37460438610 (smoke 3 arches : aarch64/x86_64 natifs, arm qemu — install + verify --deep) ; binaires STATIQUES r3 (profil Lzhiyong, ADR 0012)"
+    note: "défaut AGP 9.4.1 ; cellule AGP complète (build hôte) à mesurer — les binaires bioniques r3 sont attestés sur les trois arches"
 
   - agp: "9.4.1"
     buildTools: "35.0.2"
