@@ -86,6 +86,10 @@ set(COMPILE_FLAGS
     -fno-rtti
     )
 
+# Amont Android.bp (tools/aapt2) : cpp_std "gnu++2b" — alignement PAR
+# CIBLE comme l'amont (le reste du pipeline reste en C++20).
+set(AAPT2_CXX_STD 23)
+
 set(TOOL_SOURCE
     ${SRC}/base/tools/aapt2/cmd/ApkInfo.cpp
     ${SRC}/base/tools/aapt2/cmd/Command.cpp
@@ -176,6 +180,7 @@ add_library(libaapt2 STATIC
     )
 target_include_directories(libaapt2 PRIVATE ${INCLUDES})
 target_compile_options(libaapt2 PRIVATE ${COMPILE_FLAGS})
+set_target_properties(libaapt2 PROPERTIES CXX_STANDARD ${AAPT2_CXX_STD})
 
 # build the host shared library: aapt2_jni
 #add_library(libaapt2_jni SHARED
@@ -193,6 +198,7 @@ add_executable(aapt2
     )
 target_include_directories(aapt2 PRIVATE ${INCLUDES})
 target_compile_options(aapt2 PRIVATE ${COMPILE_FLAGS})
+set_target_properties(aapt2 PROPERTIES CXX_STANDARD ${AAPT2_CXX_STD})
 target_link_libraries(aapt2 
     libaapt2
     libandroidfw 

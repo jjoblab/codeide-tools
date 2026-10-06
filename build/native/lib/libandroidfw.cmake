@@ -71,5 +71,10 @@ target_include_directories(libandroidfw PUBLIC
     ${SRC}/incremental_delivery/incfs/util/include
     ${SRC}/incremental_delivery/incfs/kernel-headers
     )
-    
+
+# Amont Android.bp (libs/androidfw) : cpp_std "gnu++2b" — Util.cpp utilise
+# std::string::resize_and_overwrite (C++23, P1072). Le reste du pipeline
+# reste en C++20 (défaut Soong) : alignement PAR CIBLE, comme l'amont.
+set_target_properties(libandroidfw PROPERTIES CXX_STANDARD 23)
+
 target_link_libraries(libandroidfw PUBLIC fmt::fmt)
