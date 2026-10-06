@@ -49,21 +49,28 @@ jobs:
           mkdir -p smoke/fetch smoke/tmp smoke/home
           cp dist/*.tar.xz smoke/fetch/
           python3 - <<'PY'
-          import json, re
           # Manifeste local de test : composants construits servis par le crochet
           # (le téléchargement réel via GitHub Releases est testé par smoke.yml).
-          # Clé artifacts.json = <id>-<version>-r<rev>-<arch>.
-          art = json.load(open("build/artifacts.json"))
+          # AUTO-SUFFISANT : entrées dérivées des artefacts TÉLÉCHARGÉS
+          # (dist/*.sha256 + *.tar.xz du job build) — JAMAIS de build/artifacts.json
+          # du checkout : il ne contient les nouvelles versions qu'APRÈS le commit
+          # de publication (étape en aval du smoke — dépendance circulaire).
+          import glob, json, os, re
           comps = []
-          for key, e in sorted(art.items()):
-              m = re.match(r"([a-z-]+)-([0-9.]+)-(r[0-9]+)-(aarch64|arm|x86_64)", key)
+          for sha_file in sorted(glob.glob("dist/*.sha256")):
+              name = os.path.basename(sha_file)
+              if not name.endswith(".tar.xz.sha256"):
+                  continue
+              name = name[: -len(".tar.xz.sha256")]
+              m = re.match(r"([a-z-]+)-([0-9.]+)-(r[0-9]+)-(aarch64|arm|x86_64)$", name)
               if not m:
                   continue
               comps.append({
                   "id": m.group(1), "version": m.group(2), "revision": m.group(3),
                   "arch": m.group(4), "channel": "stable", "critical": True,
-                  "sources": [{"url": "https://example.invalid/" + e["archive"]}],
-                  "sha256": e["sha256"], "size": e["size"],
+                  "sources": [{"url": "https://example.invalid/" + name + ".tar.xz"}],
+                  "sha256": open(sha_file).read().split()[0],
+                  "size": os.path.getsize(f"dist/{name}.tar.xz"),
                   "installPath": (f"build-tools/{m.group(2)}" if m.group(1) == "build-tools"
                                   else "platform-tools"),
                   "requires": ["jdk>=17"],
@@ -129,6 +136,74 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { path: dist, pattern: dist-*, merge-multiple: true }
 
+      - name: Fusionne artifacts.json depuis dist (première publication)
+        run: |
+          python3 - <<'PY'
+          # Les nouvelles versions n'existent pas encore dans build/artifacts.json
+          # committé (le commit de publication est en AVAL de gen-manifest :
+          # dépendance circulaire sinon). Fusion ADDITIVE depuis les artefacts
+          # téléchargés ; immuabilité préservée (sha différent sur clé existante
+          # = échec net, jamais d'écrasement silencieux).
+          import glob, json, os, re, sys
+          path = "build/artifacts.json"
+          data = json.load(open(path)) if os.path.exists(path) else {}
+          for sha_file in sorted(glob.glob("dist/*.sha256")):
+              name = os.path.basename(sha_file)
+              if not name.endswith(".tar.xz.sha256"):
+                  continue
+              name = name[: -len(".tar.xz.sha256")]
+              if not re.match(r"[a-z-]+-[0-9.]+-r[0-9]+-(aarch64|arm|x86_64)$", name):
+                  continue
+              sha = open(sha_file).read().split()[0]
+              if name in data and data[name]["sha256"] != sha:
+                  sys.exit(f"IMMUABILITÉ : {name} committé {data[name]['sha256'][:12]}… "
+                           f"≠ construit {sha[:12]}… — révision r2 requise")
+              data[name] = {"sha256": sha,
+                            "size": os.path.getsize(f"dist/{name}.tar.xz"),
+                            "archive": f"{name}.tar.xz"}
+          with open(path, "w") as fh:
+              json.dump(data, fh, indent=2, sort_keys=True)
+              fh.write("\n")
+          print(f"artifacts.json : {len(data)} entrées")
+          PY
+
+      - name: Évidence smoke → catalogue (porte bionic du run courant)
+        run: |
+          python3 - <<'PY'
+          # La porte bionic du job smoke (needs: [smoke] satisfait) est une
+          # ÉVIDENCE d'exécution réelle (install + verify --deep + aapt2):
+          # aarch64 → ok, source = ce run. arm/x86_64 restent pending (non
+          # exécutés ici — smoke.yml les couvrira). Édition chirurgicale du
+          # YAML (regex sur la ligne exacte) : PAS de round-trip yaml.safe_dump
+          # qui détruirait les commentaires de documentation du catalogue.
+          import os, re, sys
+          run_url = (f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}"
+                     f"/actions/runs/{os.environ['GITHUB_RUN_ID']}")
+          for spec in os.environ["COMPONENTS"].split(","):
+              cid, version = spec.split("@")
+              path = f"catalog/components/{cid}.yaml"
+              text = open(path).read()
+              # bloc smoke: "<version>": puis ligne aarch64 pending → ok
+              pat = re.compile(
+                  r'^(?P<vin>[ ]+)"' + re.escape(version) + r'":\n(?P<ain>[ ]+)aarch64: \{ status: pending, reason: "[^"]*" \}$',
+                  re.MULTILINE)
+              m = pat.search(text)
+              if m:
+                  new_block = (m.group("vin") + f'"{version}":\n' + m.group("ain")
+                               + "aarch64: { status: ok, "
+                               f'source: "{run_url} — porte bionic publish.yml (install+verify+aapt2)" }}')
+                  text = text[:m.start()] + new_block + text[m.end():]
+                  open(path, "w").write(text)
+                  print(f"catalogue : {cid}@{version} aarch64 smoke ok ({run_url})")
+              elif re.search(r'"' + re.escape(version) + r'":\n\s+aarch64: \{ status: ok', text):
+                  print(f"catalogue : {cid}@{version} aarch64 déjà ok (idempotent)")
+              else:
+                  sys.exit(f"catalogue : motif smoke aarch64 introuvable pour {cid}@{version} "
+                           "— vérifier catalog/components/ (échec net, pas de repli)")
+          PY
+        env:
+          COMPONENTS: ${{ inputs.components }}
+
       - name: Régénérer les manifestes (v2 + v1 + COMPAT.md)
         run: python3 build/gen-manifest.py
 
@@ -179,14 +254,25 @@ jobs:
 
       - name: Publier gh-pages (manifeste v2 immuable + latest)
         run: |
+          set -eu
           ts=$(date -u +%Y%m%d-%H%M%S)
+          # Historique IMMUABLE conservé : clone de la branche existante
+          # (manifests/v2/<anciens ts>.json persistants) ; latest.json seul est
+          # remplacé. git init + force-push ne servait qu'à la première fois.
+          rm -rf gh-pages
+          if git clone -q --branch gh-pages --depth 1 \
+              "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages; then
+            echo "branche gh-pages existante : historique conservé"
+          else
+            mkdir -p gh-pages && (cd gh-pages && git init -q -b gh-pages)
+          fi
           mkdir -p gh-pages/manifests/v2
           cp dist/manifest.v2.json "gh-pages/manifests/v2/$ts.json"
           cp dist/manifest.v2.json gh-pages/manifests/v2/latest.json
           cd gh-pages
-          git init -q -b gh-pages
           git config user.name "jjoblab"
           git config user.email "150948254+jjoblab@users.noreply.github.com"
           git add -A
-          git commit -qm "manifeste v2 $ts"
-          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
+          git diff --cached --quiet || git commit -qm "manifeste v2 $ts"
+          git push -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages:gh-pages \
+            || git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages:gh-pages
