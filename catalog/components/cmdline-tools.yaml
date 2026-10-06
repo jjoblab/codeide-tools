@@ -20,7 +20,7 @@ smoke:
   "12.0":
     any: { status: ok, source: "mesuré hôte JDK 17/21 (note 03) + production CodeIDE v0.48.0 (ADR 0082)" }
   "17.0":
-    any: { status: pending, reason: "mesuré hôte JDK 21 (note 03) ; exécution sur appareil à confirmer (smoke.yml)" }
+    any: { status: pending, reason: "mesuré hôte JDK 21 (note 03) ; exécution directe impossible sur bionic pur : shebang /usr/bin/env des wrappers Google absent de Termux/Android (run 37461710005, code 127) — l'attestation banc exigerait une adaptation de shebang, refusée pour ne pas modifier l'artefact sous test" }
 versions:
   - version: "12.0"
     revision: r1
