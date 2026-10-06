@@ -59,6 +59,33 @@ def sed(pattern: str, target: Path) -> None:
     run(["sed", "-i", pattern, str(target)])
 
 
+def apply_git_patches(root: Path) -> None:
+    """Patchs git de la recette — conventions de chemins MIXTES de l'amont :
+    protobuf/openscreen appliqués depuis la racine (a/src/…) ; art/base
+    appliqués depuis src/ (a/art/…, a/base/…). protobuf est REQUIS
+    (config.h du protoc hôte + includes Android du cross-build — échec fatal) ;
+    les autres sont portés par tag : tolérants, le compilateur juge en
+    dernier ressort (.rej visibles dans les journaux)."""
+    p = SCRIPT_DIR / "patches"
+    strict = ["protobuf_CMakeLists.txt.patch"]
+    tolerant_root = ["task_runner.h.patch"]
+    tolerant_src = ["StringPiece.h.patch", "dex_file.cc.patch",
+                    "instruction_set.h.patch", "mem_map.cc.patch"]
+    base = ["patch", "-p1", "--batch", "--forward", "--no-backup-if-mismatch"]
+    for name in strict:
+        run(base + ["-i", str(p / name)], cwd=root)
+    for name in tolerant_root:
+        r = subprocess.run(base + ["-i", str(p / name)], cwd=root,
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            print(f"⚠ {name} : non appliqué (portage à évaluer — voir .rej)")
+    for name in tolerant_src:
+        r = subprocess.run(base + ["-i", str(p / name)], cwd=root / "src",
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            print(f"⚠ {name} : non appliqué (portage à évaluer — voir .rej)")
+
+
 def apply_patches(root: Path) -> None:
     """Reprise de l'amont, chemins réécrits : patchs depuis SCRIPT_DIR,
     cibles sous root/src/ (exécution avec CWD = root)."""
@@ -88,6 +115,8 @@ def apply_patches(root: Path) -> None:
     # googletest → boringssl/third_party/googletest (lien symbolique)
     run(["ln", "-sfn", str(src / "googletest"),
          str(src / "boringssl/src/third_party/googletest")])
+
+    apply_git_patches(root)
 
 
 def main() -> None:

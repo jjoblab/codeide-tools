@@ -12,10 +12,18 @@ on:
         description: "Spécifications id@version collées par virgules (vide = tout le catalogue)"
         type: string
         default: ""
+      arches:
+        description: "Architectures (vide = toutes ; ex. aarch64 pour la mise au point)"
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
       components:
         description: "Spécifications id@version collées par virgules (vide = tout le catalogue)"
+        type: string
+        default: ""
+      arches:
+        description: "Architectures (vide = toutes ; ex. aarch64 pour la mise au point)"
         type: string
         default: ""
 
@@ -78,7 +86,7 @@ jobs:
             aosp-
 
       - name: Fabrication déterministe (${{ matrix.spec }})
-        run: bash build/package.sh "${{ matrix.spec }}" --dist dist
+        run: bash build/package.sh "${{ matrix.spec }}" --dist dist ${{ inputs.arches && format('--arch {0}', inputs.arches) || '' }}
 
       - name: Rebuild de contrôle (même hash ?)
         run: |
@@ -87,7 +95,7 @@ jobs:
           first=$(echo dist/*.tar.xz | cut -d' ' -f1)
           sum1=$(sha256sum "$first" | cut -d' ' -f1)
           rm -f "$first"
-          bash build/package.sh "${{ matrix.spec }}" --dist dist --force >/dev/null
+          bash build/package.sh "${{ matrix.spec }}" --dist dist --force ${{ inputs.arches && format('--arch {0}', inputs.arches) || '' }} >/dev/null
           sum2=$(sha256sum "$first" | cut -d' ' -f1)
           [ "$sum1" = "$sum2" ] || { echo "NON REPRODUCTIBLE : $sum1 != $sum2"; exit 1; }
           echo "reproductible : $sum1"
