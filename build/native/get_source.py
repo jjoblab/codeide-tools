@@ -133,20 +133,31 @@ def apply_patches(root: Path) -> None:
     if bor.exists():
         sed(r"s#set(CMAKE_CXX_STANDARD 14)#set(CMAKE_CXX_STANDARD 17)#", bor)
 
-    # libbase android-16 : properties.cpp utilise __system_property_serial/
+    # libbase + liblog android-16 : properties.cpp utilise __system_property_serial/
     # __system_property_area_serial — exportées par libc depuis API 19/21 et 23
     # (bionic libc.map.txt) mais JAMAIS déclarées par les en-têtes NDK curatés
     # (vérifié jusqu'à API 34). En-tête de déclaration vendu (compat/) :
-    # insertion gardée (idempotente) en tête de properties.cpp.
-    props = src / "libbase/properties.cpp"
-    if props.exists():
-        text = props.read_text(encoding="utf-8", errors="replace")
-        if "__system_property_area_serial" in text and \
-                "system_properties_compat.h" not in text:
-            props.write_text(
-                '#include "bionic/system_properties_compat.h"\n' + text,
-                encoding="utf-8")
-            print("= libbase/properties.cpp : en-tête compat bionic inséré")
+    # insertion gardée (idempotente) en tête de chaque properties.cpp.
+    for props in (src / "libbase/properties.cpp",
+                  src / "logging/liblog/properties.cpp"):
+        if props.exists():
+            text = props.read_text(encoding="utf-8", errors="replace")
+            if "__system_property_area_serial" in text and \
+                    "system_properties_compat.h" not in text:
+                props.write_text(
+                    '#include "bionic/system_properties_compat.h"\n' + text,
+                    encoding="utf-8")
+                print(f"= {props.name} ({props.parent.name}) : en-tête compat bionic inséré")
+
+    # liblog android-16 : __android_log_logd_logger_with_timestamp est DÉFINIE
+    # dans liblog lui-même mais déclarée API 37 dans les en-têtes NDK (r27c
+    # culmine à 35) — l'appel interne est rejeté par clang. Le symbole est
+    # renommé localement (aucun consommateur du nom public dans la recette :
+    # c'est une API 37 jamais appelable depuis nos outils).
+    logw = src / "logging/liblog/logger_write.cpp"
+    if logw.exists():
+        sed(r"s#__android_log_logd_logger_with_timestamp#__codeide_logd_logger_ts#g",
+            logw)
 
     # googletest → boringssl/third_party/googletest (lien symbolique)
     run(["ln", "-sfn", str(src / "googletest"),

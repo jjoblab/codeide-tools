@@ -39,6 +39,7 @@ target_compile_definitions(liblog PRIVATE
     )
     
 target_include_directories(liblog PRIVATE
+    ${CMAKE_SOURCE_DIR}/compat/include
     ${SRC}/core/include
     ${SRC}/logging/liblog/include
     ${SRC}/core/libcutils/include
