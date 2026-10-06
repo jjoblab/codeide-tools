@@ -84,7 +84,10 @@ recipe_sha() { # sha du contenu de build/native (la recette EST la source, ADR 0
 aosp_zip_reusable() { # fichier-zip : vrai si présent ET recette inchangée (stamp)
   local zip=$1 stamp want got
   [ -s "$zip" ] || return 1
-  stamp="$(dirname "$zip")/.recipe-sha"
+  # stamp PAR ZIP (donc par arch) : un rebuild d'une arch ne doit PAS valider
+  # les zips des autres arches (bug du second run r2 : le stamp par tag posé
+  # par la reconstruction aarch64 blanchissait les zips arm/x86_64 r1 en cache).
+  stamp="$zip.recipe-sha"
   [ -s "$stamp" ] || return 1   # pas de stamp (cache antérieur au garde-fou) : reconstruire
   want="$(recipe_sha)"
   got="$(cat "$stamp")"
@@ -96,7 +99,7 @@ fetch_zip() { # amont tag arch [composant] — le chemin du zip est ÉCHOS sur s
   local amont=$1 tag=$2 arch=$3 composant=${4:-}
   local name="android-sdk-tools-static-$arch.zip" want got url
   # aosp : réutilisation du zip en cache SEULEMENT si la recette n'a pas
-  # changé (stamp .recipe-sha, cf aosp_zip_reusable) — bug constaté au r2
+  # changé (stamp <zip>.recipe-sha, cf aosp_zip_reusable) — bug constaté au r2
   # 36.0.0 : un changement de flags build/native/CMakeLists.txt était
   # silencieusement ignoré, le zip r1 reconditionné tel quel. lzhiyong :
   # le zip est épinglé sha256 (check_pin en aval) — réutilisation sûre.
@@ -123,8 +126,9 @@ fetch_zip() { # amont tag arch [composant] — le chemin du zip est ÉCHOS sur s
       # composant → CODEIDE_SCOPE (build-tools restreint la configuration).
       info "construction native (aosp) $tag/$arch${composant:+ ($composant)}" >&2
       bash "$REPO/build/native/build-native.sh" "$tag" "$arch" "$CACHE/$tag/$name" "$composant" >&2
-      # stamp : la recette qui a produit ce zip (garde-fou de réutilisation)
-      recipe_sha >"$CACHE/$tag/.recipe-sha"
+      # stamp : la recette qui a produit CE zip (garde-fou de réutilisation,
+      # par arch — voir aosp_zip_reusable)
+      recipe_sha >"$CACHE/$tag/$name.recipe-sha"
       echo "$CACHE/$tag/$name"; return ;;
     *) die "amont inconnu : $amont" ;;
   esac

@@ -106,7 +106,7 @@ jobs:
           version="${version%-r*}"                   # 36.0.0
           arch="${base##*-}"                         # arm
           rm -f "$first" "build/cache/${version}/android-sdk-tools-static-${arch}.zip" \
-                "build/cache/${version}/.recipe-sha"
+                "build/cache/${version}/android-sdk-tools-static-${arch}.zip.recipe-sha"
           echo "rebuild réel : version $version, arch $arch"
           bash build/package.sh "${{ matrix.spec }}" --dist dist --force ${{ inputs.arches && format('--arch {0}', inputs.arches) || '' }} >/dev/null
           sum2=$(sha256sum "$first" | cut -d' ' -f1)
