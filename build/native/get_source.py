@@ -22,6 +22,11 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
+# Les sources peuvent venir d'un cache CI restauré sous un autre propriétaire
+# (conteneur root → cache du runner) : sans ceci, git échoue en 128
+# (« dubious ownership »).
+GIT = ["git", "-c", "safe.directory=*"]
+
 
 def run(cmd: list[str], cwd: Path | None = None) -> None:
     print("+ " + " ".join(cmd), flush=True)
@@ -34,25 +39,25 @@ def clone_at_ref(url: str, tag: str, pinned_commit: str, dest: Path) -> None:
     constaté 2026-10-06) : on fetch le tag, on contrôle l'immuabilité ensuite —
     un tag déplacé amont provoque un échec NET (jamais de repli silencieux)."""
     if (dest / ".git").exists():
-        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=dest,
+        head = subprocess.run(GIT + ["rev-parse", "HEAD"], cwd=dest,
                               capture_output=True, text=True, check=True)
         if head.stdout.strip() == pinned_commit:
             print(f"= {dest.name:35s} déjà à {pinned_commit[:12]}")
             return
         raise SystemExit(f"{dest} existe à un autre commit — retirez-le")
     dest.mkdir(parents=True)
-    run(["git", "init", "-q", str(dest)])
-    run(["git", "-C", str(dest), "fetch", "-q", "--depth", "1",
-         url, f"refs/tags/{tag}"])
+    run(GIT + ["init", "-q", str(dest)])
+    run(GIT + ["-C", str(dest), "fetch", "-q", "--depth", "1",
+               url, f"refs/tags/{tag}"])
     resolved = subprocess.run(
-        ["git", "-C", str(dest), "rev-parse", "FETCH_HEAD^{commit}"],
+        GIT + ["-C", str(dest), "rev-parse", "FETCH_HEAD^{commit}"],
         capture_output=True, text=True, check=True).stdout.strip()
     if resolved != pinned_commit:
         raise SystemExit(
             f"IMMUABILITÉ : {dest.name} tag {tag} résout {resolved[:12]} "
             f"≠ pin catalogue {pinned_commit[:12]} — l'amont a déplacé le tag ; "
             f"re-résolvez les pins (catalog/upstream/aosp.yaml)")
-    run(["git", "-C", str(dest), "checkout", "-q", "--detach", resolved])
+    run(GIT + ["-C", str(dest), "checkout", "-q", "--detach", resolved])
 
 
 def sed(pattern: str, target: Path) -> None:
@@ -149,7 +154,7 @@ def main() -> None:
         if path not in url_of:
             raise SystemExit(f"dépôt inconnu dans repos.json : {path}")
         clone_at_ref(url_of[path], aosp_tag, commit, root / path)
-        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root / path,
+        head = subprocess.run(GIT + ["rev-parse", "HEAD"], cwd=root / path,
                               capture_output=True, text=True, check=True)
         resolved[path] = head.stdout.strip()
 
