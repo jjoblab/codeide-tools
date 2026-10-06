@@ -124,13 +124,22 @@ def build(args):
     # r3 : zlib statique de la recette (prefix avec lib/libz.a + include/).
     # Le NDK n'expose pas libz.a pour les API récentes — sans ceci, le lien
     # -static échoue (« attempted static link of dynamic object libz.so »,
-    # run 37450535018). ZLIB_ROOT (CMP0074) oriente le find_package(ZLIB)
-    # de libpng vers NOTRE .a ; le -L oriente le -lz nu des cibles (aapt,
-    # dexdump, split-select) vers le même .a avant le sysroot.
+    # run 37450535018). Les variables CACHE ZLIB_LIBRARY_RELEASE et
+    # ZLIB_INCLUDE_DIR court-circuitent le find_package(ZLIB) de libpng :
+    # find_library ne cherche PAS quand la variable cache est déjà posée —
+    # indispensable avec le toolchain NDK, dont le re-rootage (sysroot seul)
+    # ignorait ZLIB_ROOT (run 37453816425 : le .so du sysroot revenait dans
+    # la ligne de lien). Le -L oriente le -lz nu des cibles (aapt, dexdump,
+    # split-select) vers le même .a avant le sysroot.
     if args.zlib is not None:
         zlib_lib = Path(args.zlib) / 'lib' / 'libz.a'
+        zlib_inc = Path(args.zlib) / 'include'
         if not zlib_lib.exists():
             raise ValueError('zlib statique introuvable : {}'.format(zlib_lib))
+        if not (zlib_inc / 'zlib.h').exists():
+            raise ValueError('en-têtes zlib introuvables : {}'.format(zlib_inc))
+        command.append('-DZLIB_LIBRARY_RELEASE={}'.format(zlib_lib))
+        command.append('-DZLIB_INCLUDE_DIR={}'.format(zlib_inc))
         command.append('-DZLIB_ROOT={}'.format(args.zlib))
         command.append('-DCMAKE_EXE_LINKER_FLAGS=-L{}'.format(Path(args.zlib) / 'lib'))
 
