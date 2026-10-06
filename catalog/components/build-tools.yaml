@@ -40,7 +40,7 @@ smoke:
     arm:     { status: pending, reason: "idem" }
     x86_64:  { status: pending, reason: "idem" }
   "36.0.0":
-    aarch64: { status: pending, reason: "construit depuis sources AOSP (ADR 0012) — smoke.yml requis" }
+    aarch64: { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37424794649 — porte bionic publish.yml (install+verify+aapt2)" }
     arm:     { status: pending, reason: "idem" }
     x86_64:  { status: pending, reason: "idem" }
 versions:
