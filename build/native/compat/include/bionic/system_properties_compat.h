@@ -8,6 +8,12 @@
  * jusqu'à API 34). Les sources android-16 les utilisent (libbase, liblog,
  * libcutils/trace-dev.inc…).
  *
+ * __system_properties_init : EXPORTÉE par bionic (libc.map.txt android-16,
+ * bloc LIBC_Q « introduced=29 », annotation « Used by libselinux ») et
+ * DÉCLARÉE dans l'en-tête PUBLIC bionic (libc/include/sys/
+ * system_properties.h:176) — la curation NDK l'a retirée. libselinux/
+ * android_device.c:85 l'appelle (restorecon). Plancher API 30 ≥ 29 ✓.
+ *
  * AUCUNE inclusion ici : ce fichier est force-inclus en TÊTE de toutes les
  * unités C/CXX — une inclusion (p. ex. <sys/system_properties.h>) pourrait
  * tirer <string.h> AVANT le « #undef _GNU_SOURCE » de certains fichiers
@@ -30,6 +36,8 @@ extern "C" {
 __UINT32_TYPE__ __system_property_area_serial(void);
 
 __UINT32_TYPE__ __system_property_serial(const struct prop_info* __pi);
+
+int __system_properties_init(void);
 
 #ifdef __cplusplus
 }
