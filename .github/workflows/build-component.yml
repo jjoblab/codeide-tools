@@ -93,11 +93,21 @@ jobs:
 
       - name: Rebuild de contrôle (même hash ?)
         run: |
-          before=$(jq -r '."${{ matrix.spec }}-r1-$(uname -m | sed s/aarch64/aarch64/)' build/artifacts.json 2>/dev/null || true)
-          # Rebuild complet de la première arch et comparaison.
+          # Rebuild de contrôle — VRAI rebuild de la première arch (le zip
+          # natif + son stamp .recipe-sha sont supprimés : package.sh doit
+          # re-fabriquer via build-native.sh, pas reconditionner le cache).
+          # L'arche est extraite du nom d'archive (build-tools-36.0.0-r2-arm
+          # → arm). La comparaison des sha prouve la reproductibilité de
+          # TOUTE la chaîne (sources épinglées + recette + empaquetage).
           first=$(echo dist/*.tar.xz | cut -d' ' -f1)
           sum1=$(sha256sum "$first" | cut -d' ' -f1)
-          rm -f "$first"
+          base="$(basename "$first" .tar.xz)"        # build-tools-36.0.0-r2-arm
+          version="${base#*-*-}"                     # 36.0.0-r2-arm
+          version="${version%-r*}"                   # 36.0.0
+          arch="${base##*-}"                         # arm
+          rm -f "$first" "build/cache/${version}/android-sdk-tools-static-${arch}.zip" \
+                "build/cache/${version}/.recipe-sha"
+          echo "rebuild réel : version $version, arch $arch"
           bash build/package.sh "${{ matrix.spec }}" --dist dist --force ${{ inputs.arches && format('--arch {0}', inputs.arches) || '' }} >/dev/null
           sum2=$(sha256sum "$first" | cut -d' ' -f1)
           [ "$sum1" = "$sum2" ] || { echo "NON REPRODUCTIBLE : $sum1 != $sum2"; exit 1; }
