@@ -80,9 +80,16 @@ PY
 
 # --- plateforme docker ---------------------------------------------------------
 # arm : aucun runner public 32 bits → émulation qemu-user (binfmt posé par
-# l'appelant). # shellcheck disable=SC2086 : découpage voulu de $platform.
+# l'appelant). seccomp=unconfined : qemu-user interroge personality(0xffffffff)
+# à l'init pour la disposition d'adressage du client — argument que le profil
+# seccomp Docker PAR DÉFAUT bloque (EPERM → qemu s'abort, « uncaught target
+# signal 6 », run 37429101295). Conteneur de banc jetable : coût assumé et
+# documenté de l'émulation CPU.
+# # shellcheck disable=SC2086 : découpage voulu de $platform.
 platform=""
-if [ "$arch" = arm ]; then platform="--platform linux/arm/v7"; fi
+if [ "$arch" = arm ]; then
+  platform="--platform linux/arm/v7 --security-opt seccomp=unconfined"
+fi
 
 # --- script interne (bionique) : valeurs validées embarquées, \$ = conteneur --
 script=$(cat <<EOF
