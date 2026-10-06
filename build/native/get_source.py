@@ -73,8 +73,9 @@ def apply_git_patches(root: Path) -> None:
       - a/src/<repo>/…  (protobuf, task_runner) → -p2 depuis real_src ;
       - a/<repo>/…      (art, base)             → -p1 depuis real_src.
     protobuf est REQUIS (config.h du protoc hôte + includes Android du
-    cross-build — échec fatal) ; les autres sont portés par tag : tolérants,
-    le compilateur juge en dernier ressort (.rej visibles dans les journaux)."""
+    cross-build). « Reversed (or previously applied) » (reprise sur cache)
+    est un SUCCÈS : l'état voulu est déjà atteint — GNU patch sort 1 même
+    dans ce cas, on ne doit pas l'interpréter comme un échec."""
     real_src = (root / "src").resolve()
     p = SCRIPT_DIR / "patches"
     strict = {"protobuf_CMakeLists.txt.patch": 2}
@@ -89,12 +90,15 @@ def apply_git_patches(root: Path) -> None:
             "-d", str(real_src)]
     for name, strip in {**strict, **tolerant}.items():
         cmd = base + [f"-p{strip}", "-i", str(p / name)]
-        if name in strict:
-            run(cmd)
-        else:
-            r = subprocess.run(cmd, capture_output=True, text=True)
-            if r.returncode != 0:
-                print(f"⚠ {name} : non appliqué (portage à évaluer — voir .rej)")
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        out = (r.stdout + r.stderr)
+        deja = "Reversed (or previously applied) patch detected" in out
+        if r.returncode != 0 and not deja:
+            if name in strict:
+                raise SystemExit(f"patch REQUIS en échec : {name}\n{out}")
+            print(f"⚠ {name} : non appliqué (portage à évaluer — voir .rej)")
+        elif r.returncode != 0 and deja:
+            print(f"= {name} : déjà appliqué (cache)")
 
 
 def apply_patches(root: Path) -> None:
