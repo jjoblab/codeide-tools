@@ -23,15 +23,15 @@ verify:
 smoke:
   "35.0.2":
     aarch64: { status: ok, source: "archive v1 installée sur appareil par CodeIDE v0.51+ (ADR 0082) — binaires identiques ; présence suffit au build AGP (note 07 § 5)" }
-    arm:     { status: pending, reason: "jamais exécuté — smoke.yml requis" }
+    arm:     { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37439785400 — smoke.yml bionic arm (install + verify --deep, téléchargement réel) — CPU émulé qemu-arm, bionique réel" }
     x86_64:  { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37429101295 — smoke.yml bionic x86_64 (install + verify --deep, téléchargement réel)" }
   "34.0.3":
     aarch64: { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37429101295 — smoke.yml bionic aarch64 (install + verify --deep, téléchargement réel)" }
-    arm:     { status: pending, reason: "idem" }
+    arm:     { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37439785400 — smoke.yml bionic arm (install + verify --deep, téléchargement réel) — CPU émulé qemu-arm, bionique réel" }
     x86_64:  { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37429101295 — smoke.yml bionic x86_64 (install + verify --deep, téléchargement réel)" }
   "33.0.3":
     aarch64: { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37429101295 — smoke.yml bionic aarch64 (install + verify --deep, téléchargement réel)" }
-    arm:     { status: pending, reason: "idem" }
+    arm:     { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37439785400 — smoke.yml bionic arm (install + verify --deep, téléchargement réel) — CPU émulé qemu-arm, bionique réel" }
     x86_64:  { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37429101295 — smoke.yml bionic x86_64 (install + verify --deep, téléchargement réel)" }
 versions:
   - version: "35.0.2"

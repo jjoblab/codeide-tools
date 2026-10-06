@@ -127,7 +127,7 @@
     },
     {
       "arch": "arm",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "build-tools",
       "installPath": "build-tools/33.0.3",
@@ -202,7 +202,7 @@
     },
     {
       "arch": "arm",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "build-tools",
       "installPath": "build-tools/34.0.3",
@@ -277,7 +277,7 @@
     },
     {
       "arch": "arm",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "build-tools",
       "installPath": "build-tools/35.0.2",
@@ -541,7 +541,7 @@
     },
     {
       "arch": "arm",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "platform-tools",
       "installPath": "platform-tools",
@@ -610,7 +610,7 @@
     },
     {
       "arch": "arm",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "platform-tools",
       "installPath": "platform-tools",
@@ -679,7 +679,7 @@
     },
     {
       "arch": "arm",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "platform-tools",
       "installPath": "platform-tools",
@@ -724,7 +724,7 @@
       "version": "35.0.2"
     }
   ],
-  "generatedAt": "2026-10-06T09:11:30Z",
+  "generatedAt": "2026-10-06T09:12:00Z",
   "profiles": {
     "agp9": {
       "components": [
