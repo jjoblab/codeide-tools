@@ -135,8 +135,11 @@ def build_v2_components(upstream: dict, components: list[dict], artifacts: dict)
                 }
                 if comp.get("license"):
                     entry["license"] = comp["license"]
-                if comp.get("minAndroidApi"):
-                    entry["minAndroidApi"] = comp["minAndroidApi"]
+                # minAndroidApi : surcharge par version (aosp/36.0.0 compilée
+                # à API 34 — ADR 0012), sinon champ composant.
+                min_api = v.get("minAndroidApi", comp.get("minAndroidApi"))
+                if min_api:
+                    entry["minAndroidApi"] = min_api
                 if comp.get("archive-root"):
                     entry["archiveRoot"] = comp["archive-root"]
                 out.append(entry)

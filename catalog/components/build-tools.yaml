@@ -47,7 +47,8 @@ versions:
   - version: "36.0.0"
     revision: r1
     upstream: aosp
-    notes: "PREMIÈRE version construite depuis les sources AOSP (tag android-16.0.0_r1, ADR 0012) — comble le gap AGP 9.x (minimale 36.0.0, ADR 0003) que l'amont Lzhiyong figé ne couvrira jamais ; binaire natif bionic, ELF for Android 30"
+    minAndroidApi: 34
+    notes: "PREMIÈRE version construite depuis les sources AOSP (tag android-16.0.0_r1, ADR 0012) — comble le gap AGP 9.x (minimale 36.0.0, ADR 0003) que l'amont Lzhiyong figé ne couvrira jamais ; compilée à l'API 34 (en-têtes bionic requis par libbase android-16 — surcharge par version, cf aosp.yaml)"
   - version: "35.0.2"
     revision: r1
     notes: "défaut AGP 8.13 sans auto-installation (>= 35.0.0) ; aapt2 lisible jusqu'à compileSdk 37 (R2)"

@@ -14,6 +14,10 @@ image: ubuntu:24.04@sha256:f610ab94648195aa356059f5b41d6085c9d4d903c072430cdd1af
 pins:
   "36.0.0":
     tag: android-16.0.0_r1
+    # Niveau d'API de COMPILATION : les sources android-16 (libbase/properties.cpp
+    # → __system_property_area_serial, etc.) exigent des en-têtes bionic plus
+    # récents que le sysroot API 30 — surcharge par version (défaut : 30).
+    api: 34
     repos:
       src/abseil-cpp: 3c03adaaf6c28f5c5c47c753e860b9ac16957b35
       src/adb: ce023afef190b0cea7f8939e9dd5ee3ee79b137b

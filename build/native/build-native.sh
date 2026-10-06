@@ -49,7 +49,10 @@ WORK="$(cd "$WORK" && pwd)"
 # 1) pins depuis le catalogue (échec net si la version n'est pas épinglée aosp)
 python3 "$REPO/build/catalog-query.py" aosp "$version" pins-json >"$WORK/pins.json"
 aosp_tag="$(python3 -c "import json;print(json.load(open('$WORK/pins.json'))['tag'])")"
-echo "==> amont aosp : $aosp_tag ($arch → $abi)" >&2
+# Niveau d'API de compilation : surcharge par version au catalogue, sinon 30.
+API="$(python3 "$REPO/build/catalog-query.py" aosp "$version" api)"
+API="${API:-30}"
+echo "==> amont aosp : $aosp_tag, api $API ($arch → $abi)" >&2
 
 # 2) image Docker épinglée (cache de couches Docker si présent)
 docker build -q -t codeide-native "$NATIVE" >/dev/null
@@ -81,7 +84,7 @@ docker run --rm \
       ninja -C src/protobuf/build protoc
     fi
 
-    python3 build.py --ndk /opt/ndk --abi '"$abi"' --api 30 \
+    python3 build.py --ndk /opt/ndk --abi '"$abi"' --api '"$API"' \
       --build /work/build-'"$arch"' \
       --protoc /work/recipe-mirror/src/protobuf/build/protoc
   '
