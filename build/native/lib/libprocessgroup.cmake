@@ -46,3 +46,8 @@ target_include_directories(libprocessgroup PRIVATE
 target_include_directories(libprocessgroup PRIVATE
     ${SRC}/core/libprocessgroup
     )
+
+# Amont Android.bp (libprocessgroup_util) : cpp_std "gnu++23" — util.cpp
+# utilise std::string::contains (C++23). Alignement PAR CIBLE, comme
+# androidfw/aapt2 ; le reste du pipeline reste en C++20 (défaut Soong).
+set_target_properties(libprocessgroup PROPERTIES CXX_STANDARD 23)
