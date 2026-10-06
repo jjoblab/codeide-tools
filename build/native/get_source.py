@@ -151,13 +151,28 @@ def apply_patches(root: Path) -> None:
 
     # liblog android-16 : __android_log_logd_logger_with_timestamp est DÉFINIE
     # dans liblog lui-même mais déclarée API 37 dans les en-têtes NDK (r27c
-    # culmine à 35) — l'appel interne est rejeté par clang. Le symbole est
-    # renommé localement (aucun consommateur du nom public dans la recette :
-    # c'est une API 37 jamais appelable depuis nos outils).
+    # culmine à 35) — l'appel interne est rejeté par clang. Renommage local
+    # (aucun consommateur du nom public : API 37 jamais appelable par nos
+    # outils) + déclaration avancée (le log.h amont ne déclare plus le nom
+    # renommé, et la définition suit l'appel).
     logw = src / "logging/liblog/logger_write.cpp"
     if logw.exists():
-        sed(r"s#__android_log_logd_logger_with_timestamp#__codeide_logd_logger_ts#g",
-            logw)
+        lw = logw.read_text(encoding="utf-8", errors="replace")
+        fwd_mark = ("void __codeide_logd_logger_ts"
+                    "(const struct __android_log_message*,")
+        if fwd_mark not in lw:
+            # renommage (no-op si déjà fait par une exécution antérieure)
+            lw = lw.replace("__android_log_logd_logger_with_timestamp",
+                            "__codeide_logd_logger_ts")
+            anchor = ("void __android_log_logd_logger"
+                      "(const struct __android_log_message* log_message) {")
+            fwd = (fwd_mark + "\n"
+                   "                              const struct timespec*);\n")
+            if anchor in lw:
+                lw = lw.replace(anchor, fwd + anchor, 1)
+            logw.write_text(lw, encoding="utf-8")
+            print("= liblog/logger_write.cpp : _with_timestamp renommée (API 37) "
+                  "+ déclaration avancée")
 
     # googletest → boringssl/third_party/googletest (lien symbolique)
     run(["ln", "-sfn", str(src / "googletest"),
