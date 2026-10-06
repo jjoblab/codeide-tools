@@ -50,15 +50,18 @@ docker run --rm \
   -v "$WORK":/work \
   codeide-native bash -euxo pipefail -c '
     cd /work
-    # recette copiée dans le volume (sources mises en cache à côté)
+    # recette (fichiers légers, ~1,7 Mio) copiée à frais — le commit du dépôt
+    # est le pin de la recette ; les SOURCES restent dans le volume (/work/src,
+    # ~2 Go) à travers un lien symbolique : pas de re-clonage entre arches.
     rm -rf /work/recipe-mirror
-    mkdir -p /work/recipe-mirror
-    cp -a /recipe/. /work/recipe-mirror/ 2>/dev/null || cp -r /recipe/. /work/recipe-mirror/
+    mkdir -p /work/recipe-mirror /work/src
+    cp -a /recipe/. /work/recipe-mirror/
+    ln -sfn /work/src /work/recipe-mirror/src
     cd /work/recipe-mirror
 
     python3 get_source.py --pins /work/pins.json --root /work/recipe-mirror
 
-    # protoc hôte (une seule fois, mis en cache)
+    # protoc hôte (protobuf AOSP) — persistant dans /work/src/protobuf/build
     if [ ! -x src/protobuf/build/protoc ]; then
       cmake -GNinja -S src/protobuf -B src/protobuf/build \
             -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
