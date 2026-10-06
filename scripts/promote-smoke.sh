@@ -66,5 +66,6 @@ cp dist/manifest.v2.json gh-pages/manifests/v2/latest.json
   git diff --cached --quiet || git commit -qm "manifeste v2 $ts — promotion smoke $run_id"
   git push -q origin gh-pages
 )
+rm -rf gh-pages   # nettoyage : le clone ne doit pas polluer l'arbre de travail
 
 printf '%s\n' "promotion terminée : main poussé, gh-pages $ts.json + latest.json publiés"
