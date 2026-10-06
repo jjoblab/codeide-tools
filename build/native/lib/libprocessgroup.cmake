@@ -18,16 +18,27 @@
 # cgrouprc_format/ et les anciens noms ont disparu ; sched_policy.cpp et
 # task_profiles.cpp ne sont plus dans ce répertoire. Seuls les fichiers
 # EXISTANTS sont listés (échec net sinon — pas de repli silencieux).
+#
+# Amont « libcgrouprc » lie en statique « libprocessgroup_util » (util/ :
+# cgroup_controller.cpp, cgroup_descriptor.cpp, util.cpp ; dépendances
+# libbase + libjsoncpp, déjà couvertes) — sans ses objets, l'édition de
+# liens échouerait (CgroupController/CgroupDescriptor/…). En-têtes
+# processgroup/{cgroup_controller,cgroup_descriptor,util}.h exportés par
+# util/include (Am.bp : export_include_dirs de libprocessgroup_util).
 add_library(libprocessgroup STATIC
     ${SRC}/core/libprocessgroup/cgroup_map.cpp
     ${SRC}/core/libprocessgroup/processgroup.cpp
     ${SRC}/core/libprocessgroup/cgrouprc/a_cgroup_controller.cpp
     ${SRC}/core/libprocessgroup/cgrouprc/a_cgroup_file.cpp
+    ${SRC}/core/libprocessgroup/util/cgroup_controller.cpp
+    ${SRC}/core/libprocessgroup/util/cgroup_descriptor.cpp
+    ${SRC}/core/libprocessgroup/util/util.cpp
     )
 
 target_include_directories(libprocessgroup PRIVATE
     ${SRC}/core/libprocessgroup/include
     ${SRC}/core/libprocessgroup/cgrouprc/include
+    ${SRC}/core/libprocessgroup/util/include
     ${SRC}/libbase/include
     ${SRC}/core/libcutils/include
     ${SRC}/jsoncpp/include
