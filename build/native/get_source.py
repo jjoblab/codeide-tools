@@ -60,36 +60,42 @@ def sed(pattern: str, target: Path) -> None:
 
 
 def apply_git_patches(root: Path) -> None:
-    """Patchs git de la recette — conventions de chemins MIXTES de l'amont :
-    protobuf/openscreen appliqués depuis la racine (a/src/…) ; art/base
-    appliqués depuis src/ (a/art/…, a/base/…). protobuf est REQUIS
-    (config.h du protoc hôte + includes Android du cross-build — échec fatal) ;
-    les autres sont portés par tag : tolérants, le compilateur juge en
-    dernier ressort (.rej visibles dans les journaux)."""
+    """Patchs git de la recette, appliqués depuis les VRAIES sources
+    (real_src = root/src résolu — GNU patch ne suit pas les liens
+    symboliques dans les composants du chemin, constaté en CI).
+
+    Niveaux de strip par convention de l'amont (mixte) :
+      - a/src/<repo>/…  (protobuf, task_runner) → -p2 depuis real_src ;
+      - a/<repo>/…      (art, base)             → -p1 depuis real_src.
+    protobuf est REQUIS (config.h du protoc hôte + includes Android du
+    cross-build — échec fatal) ; les autres sont portés par tag : tolérants,
+    le compilateur juge en dernier ressort (.rej visibles dans les journaux)."""
+    real_src = (root / "src").resolve()
     p = SCRIPT_DIR / "patches"
-    strict = ["protobuf_CMakeLists.txt.patch"]
-    tolerant_root = ["task_runner.h.patch"]
-    tolerant_src = ["StringPiece.h.patch", "dex_file.cc.patch",
-                    "instruction_set.h.patch", "mem_map.cc.patch"]
-    base = ["patch", "-p1", "--batch", "--forward", "--no-backup-if-mismatch"]
-    for name in strict:
-        run(base + ["-i", str(p / name)], cwd=root)
-    for name in tolerant_root:
-        r = subprocess.run(base + ["-i", str(p / name)], cwd=root,
-                           capture_output=True, text=True)
-        if r.returncode != 0:
-            print(f"⚠ {name} : non appliqué (portage à évaluer — voir .rej)")
-    for name in tolerant_src:
-        r = subprocess.run(base + ["-i", str(p / name)], cwd=root / "src",
-                           capture_output=True, text=True)
-        if r.returncode != 0:
-            print(f"⚠ {name} : non appliqué (portage à évaluer — voir .rej)")
+    strict = {"protobuf_CMakeLists.txt.patch": 2}
+    tolerant = {
+        "task_runner.h.patch": 2,
+        "StringPiece.h.patch": 1,
+        "dex_file.cc.patch": 1,
+        "instruction_set.h.patch": 1,
+        "mem_map.cc.patch": 1,
+    }
+    base = ["patch", "--batch", "--forward", "--no-backup-if-mismatch",
+            "-d", str(real_src)]
+    for name, strip in {**strict, **tolerant}.items():
+        cmd = base + [f"-p{strip}", "-i", str(p / name)]
+        if name in strict:
+            run(cmd)
+        else:
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            if r.returncode != 0:
+                print(f"⚠ {name} : non appliqué (portage à évaluer — voir .rej)")
 
 
 def apply_patches(root: Path) -> None:
-    """Reprise de l'amont, chemins réécrits : patchs depuis SCRIPT_DIR,
-    cibles sous root/src/ (exécution avec CWD = root)."""
-    src = root / "src"
+    """Reprise de l'amont, chemins réécrits vers les VRAIES sources
+    (real_src) — les liens symboliques de mise en page sont évités."""
+    src = (root / "src").resolve()
     inc = src / "incremental_delivery/sysprop/include"
     inc.mkdir(parents=True, exist_ok=True)
     p = SCRIPT_DIR / "patches"

@@ -76,12 +76,15 @@ jobs:
       # Cache du pipeline natif (ADR 0012) : sources AOSP (~2 Go), protoc hôte
       # et répertoires de build — la clé suit les pins du catalogue aosp.yaml.
       # Inoffensif pour les versions lzhiyong (le cache contient aussi leurs zips).
-      - name: Cache natif AOSP (sources + builds)
-        uses: actions/cache@v4
+      # save en if:always() — les échecs de mise au point préservent les sources
+      # (actions/cache ne sauvegarde par défaut qu'en succès).
+      - name: Restaure le cache natif AOSP
+        uses: actions/cache/restore@v4
         with:
           path: build/cache
-          key: aosp-${{ hashFiles('catalog/upstream/aosp.yaml') }}-${{ matrix.spec }}
+          key: aosp-${{ hashFiles('catalog/upstream/aosp.yaml') }}-${{ matrix.spec }}-${{ github.run_id }}
           restore-keys: |
+            aosp-${{ hashFiles('catalog/upstream/aosp.yaml') }}-${{ matrix.spec }}-
             aosp-${{ hashFiles('catalog/upstream/aosp.yaml') }}-
             aosp-
 
@@ -100,6 +103,13 @@ jobs:
           [ "$sum1" = "$sum2" ] || { echo "NON REPRODUCTIBLE : $sum1 != $sum2"; exit 1; }
           echo "reproductible : $sum1"
 
+
+      - name: Sauve le cache natif AOSP (même en échec)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: build/cache
+          key: aosp-${{ hashFiles('catalog/upstream/aosp.yaml') }}-${{ matrix.spec }}-${{ github.run_id }}
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.spec }}
