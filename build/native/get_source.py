@@ -127,6 +127,12 @@ def apply_patches(root: Path) -> None:
     sed(r"s#/usr/src/googletest#${CMAKE_SOURCE_DIR}/src/googletest#g",
         src / "abseil-cpp/CMakeLists.txt")
 
+    # boringssl android-16 : le CMakeLists amont épie C++14 mais span.h
+    # exige C++17 (std::is_convertible_v) — sinon échec de compilation croisée.
+    bor = src / "boringssl/CMakeLists.txt"
+    if bor.exists():
+        sed(r"s#set(CMAKE_CXX_STANDARD 14)#set(CMAKE_CXX_STANDARD 17)#", bor)
+
     # googletest → boringssl/third_party/googletest (lien symbolique)
     run(["ln", "-sfn", str(src / "googletest"),
          str(src / "boringssl/src/third_party/googletest")])
