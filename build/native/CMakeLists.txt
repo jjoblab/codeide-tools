@@ -21,6 +21,16 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 20)
 enable_language(ASM)
 
+# Port codeide (ADR 0012) — déclarations bionic absentes des en-têtes NDK
+# curatés (__system_property_serial/area_serial : exportées par libc depuis
+# API 19/21 et 23 mais jamais déclarées par le NDK, vérifié jusqu'à API 34) :
+# incluses de force dans TOUTES les unités de compilation (les sources
+# android-16 les utilisent à plusieurs endroits : libbase, liblog,
+# libcutils/trace-dev.inc…).
+add_compile_options(
+    -include ${CMAKE_SOURCE_DIR}/compat/include/bionic/system_properties_compat.h
+)
+
 # set global cflags and cxxflags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fcolor-diagnostics -fPIC -Wno-attributes")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcolor-diagnostics -fPIC -Wno-attributes")
