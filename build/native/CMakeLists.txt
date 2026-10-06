@@ -34,20 +34,23 @@ add_compile_options(
 )
 
 # set global cflags and cxxflags
-# -ftls-model=initial-exec : les variables thread_local du code lié (exécutable
-#   + bibliothèques statiques) deviennent des accès directs TP-relatif — la
-# référence au symbole __tls_get_addr@LIBC_Q (modèle general-dynamic, émis par
-# défaut avec -fPIC) DISPARAÎT. Raison (ADR 0012, révision r2) : le banc armv7
-# disponible (Termux, bionic API 28) n'exporte pas __tls_get_addr (introduit
-# API 29, bloc LIBC_Q — bionic/libc.map.txt android-16.0.0_r1) alors que les
-# bancs aarch64/x86_64 (bionic actuel) l'ont ; initial-exec est équivalent
-# pour le TLS défini DANS l'exécutable (aucun dlopen de TLS ici), plus rapide,
-# et élargit la compatibilité bionic. Vérifié : le r1 arm échouait au
-# chargeur du banc (« cannot locate symbol __tls_get_addr », run 37439785400).
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fcolor-diagnostics -fPIC -Wno-attributes -ftls-model=initial-exec")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcolor-diagnostics -fPIC -Wno-attributes -ftls-model=initial-exec")
+# -ftls-model=local-exec + -static (r3) : les binaires sont des exécutables
+# ENTIÈREMENT STATIQUES (ET_EXEC, pas d'INTERP, pas de NEEDED) — le profil
+# exact des binaires Lzhiyong 33-35 (« statically linked, for Android 30 »),
+# qui passent sur tous les bancs et en production (ADR 0082). L'historique
+# des échecs arm du banc Termux armv7 (bionic API 28) illustre pourquoi :
+#   r1 (PIE dynamique)  : __tls_get_addr@LIBC_Q (GD TLS) — symbole API 29
+#                         absent du bionic API 28 (run 37439785400) ;
+#   r2 (PIE + IE TLS)   : R_ARM_TLS_TPOFF32 dynamique — reloc inconnue du
+#                         chargeur de ce même banc (run 37449355987).
+# Un exécutable statique ne traverse AUCUN chargeur : la question disparaît
+# (le TLS local-exec est résolu au link, aucune reloc dynamique). La recette
+# prévoyait ce mode (« static link (may need some patches) ») et le zip
+# amont s'appelle android-sdk-tools-STATIC ; r1/r2 l'avaient oublié.
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fcolor-diagnostics -fPIC -Wno-attributes -ftls-model=local-exec")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcolor-diagnostics -fPIC -Wno-attributes -ftls-model=local-exec")
 # static link (may need some patches)
-#set(CMAKE_EXE_LINKER_FLAGS "-static")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
 
 # platform tools version
 # see the patches/other/platform_tools_version.h

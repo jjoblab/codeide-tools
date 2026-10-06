@@ -40,15 +40,15 @@ smoke:
     arm:     { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37439785400 — smoke.yml bionic arm (install + verify --deep, téléchargement réel) — CPU émulé qemu-arm, bionique réel" }
     x86_64:  { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37429101295 — smoke.yml bionic x86_64 (install + verify --deep, téléchargement réel)" }
   "36.0.0":
-    aarch64: { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37447551014 — porte bionic publish.yml (install+verify+aapt2)" }
-    arm:     { status: pending, reason: "r1 : banc armv7 (Termux, bionic API 28) sans __tls_get_addr@LIBC_Q (API 29) — échec chargeur, run 37439785400 ; r2 (TLS initial-exec) : à re-tester" }
-    x86_64:  { status: pending, reason: "r2 reconstruit (TLS initial-exec) — octets ≠ r1, re-attestation requise (smoke)" }
+    aarch64: { status: pending, reason: "r3 reconstruit (statique ET_EXEC, profil Lzhiyong) — octets ≠ r2, re-attestation requise (porte publish)" }
+    arm:     { status: pending, reason: "r1 : __tls_get_addr@LIBC_Q absent du bionic API 28 du banc (37439785400) ; r2 : R_ARM_TLS_TPOFF32 inconnue du chargeur (37449355987) ; r3 : exécutable STATIQUE, aucun chargeur — à re-tester" }
+    x86_64:  { status: pending, reason: "r3 reconstruit (statique ET_EXEC, profil Lzhiyong) — octets ≠ r2, re-attestation requise (smoke)" }
 versions:
   - version: "36.0.0"
-    revision: r2
+    revision: r3
     upstream: aosp
     minAndroidApi: 34
-    notes: "PREMIÈRE version construite depuis les sources AOSP (tag android-16.0.0_r1, ADR 0012) — comble le gap AGP 9.x (minimale 36.0.0, ADR 0003) que l'amont Lzhiyong figé ne couvrira jamais ; compilée à l'API 34 (en-têtes bionic requis par libbase android-16 — surcharge par version, cf aosp.yaml). r2 : TLS initial-exec (le r1 arm référençait __tls_get_addr@LIBC_Q, absent du bionic API 28 du banc armv7 — run 37439785400 ; équivalent et plus rapide pour le TLS de l'exécutable, compatibilité bionic élargie)"
+    notes: "PREMIÈRE version construite depuis les sources AOSP (tag android-16.0.0_r1, ADR 0012) — comble le gap AGP 9.x (minimale 36.0.0, ADR 0003) que l'amont Lzhiyong figé ne couvrira jamais ; compilée à l'API 34 (en-têtes bionic requis par libbase android-16 — surcharge par version, cf aosp.yaml). r2 : TLS initial-exec (le r1 arm référençait __tls_get_addr@LIBC_Q, absent du bionic API 28 du banc armv7 — run 37439785400 ; équivalent et plus rapide pour le TLS de l'exécutable, compatibilité bionic élargie) ; r3 : exécutables ENTIÈREMENT STATIQUES (TLS local-exec + -static, ET_EXEC sans INTERP/NEEDED — profil exact des binaires Lzhiyong, validé en production ADR 0082 ; le r2 restait PIE dynamique et échouait sur R_ARM_TLS_TPOFF32 au chargeur du banc armv7, run 37449355987)"
   - version: "35.0.2"
     revision: r1
     notes: "défaut AGP 8.13 sans auto-installation (>= 35.0.0) ; aapt2 lisible jusqu'à compileSdk 37 (R2)"
