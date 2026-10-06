@@ -85,7 +85,7 @@ jobs:
       # posée AVANT le docker run du banc (voir scripts/smoke-banc.sh).
       - name: Émulation armv7 (binfmt/QEMU) — arch arm uniquement
         if: matrix.arch == 'arm'
-        run: docker run --privileged --rm tonistiigi/binfmt:qemu-v7.0.2 --install arm
+        run: docker run --privileged --rm tonistiigi/binfmt:qemu-v10.2.3 --install arm
 
       - name: Banc bionique — téléchargement réel + install + verify --deep
         env:

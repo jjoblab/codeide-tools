@@ -17,6 +17,15 @@
 # (su → uid 1000 « system ») est le seul mode où pkg fonctionne. Patron
 # éprouvé : porte bionic de publish.yml (run 37424794649).
 #
+# MANIFESTE DE BANC : le CLI consommateur ignore le canal preview (règle
+# 12.2 : l'app n'installe que ce qui est attesté). Or le banc teste
+# PRÉCISÉMENT la promotion preview → stable de ces entrées : il travaille
+# sur une copie du manifeste publié où les canaux preview de l'arche visée
+# passent stable. URLs/sha256/tailles INCHANGÉS — téléchargements réels et
+# vérifications d'intégrité identiques ; seul le filtre de canal est
+# neutralisé (hypothèse sous test — même approche que la porte bionic de
+# publish.yml, manifeste de test à channel stable).
+#
 # L'entrypoint fait env -i : les variables -e n'atteignent pas le conteneur ;
 # les valeurs sont EMBEDDÉES dans le script interne APRÈS validation stricte
 # (les expressions shell n'existent pas dans les valeurs validées : aucune
@@ -49,24 +58,41 @@ if arch not in ("aarch64", "arm", "x86_64"):
     sys.exit(f"arche inconnue : {arch} (supportées : aarch64, arm, x86_64)")
 PY
 
+mkdir -p smoke/home smoke/tmp
+chmod -R a+rwX smoke
+
+# --- manifeste de banc : copie du publié, preview → stable pour l'arche ------
+python3 - "$manifest" "$arch" > smoke/banc-manifest.json <<'PY'
+import json, sys, urllib.request
+url, arch = sys.argv[1], sys.argv[2]
+with urllib.request.urlopen(url) as r:
+    data = json.load(r)
+flipped = 0
+for c in data.get("components", []):
+    if c.get("channel") == "preview" and c.get("arch") in (arch, "any"):
+        c["channel"] = "stable"
+        flipped += 1
+json.dump(data, sys.stdout, indent=2)
+print()
+print(f"manifeste de banc : {flipped} entrée(s) preview→stable ({arch}) — URLs/sha inchangés",
+      file=sys.stderr)
+PY
+
 # --- plateforme docker ---------------------------------------------------------
 # arm : aucun runner public 32 bits → émulation qemu-user (binfmt posé par
 # l'appelant). # shellcheck disable=SC2086 : découpage voulu de $platform.
 platform=""
 if [ "$arch" = arm ]; then platform="--platform linux/arm/v7"; fi
 
-mkdir -p smoke/home smoke/tmp
-chmod -R a+rwX smoke
-
 # --- script interne (bionique) : valeurs validées embarquées, \$ = conteneur --
 script=$(cat <<EOF
 set -eu
 arch="$arch"
 comps="$components"
-manifest="$manifest"
+echo "manifeste source : $manifest"
 export PATH=/data/data/com.termux/files/usr/bin:\$PATH
 export HOME=/smoke/home TMPDIR=/smoke/tmp
-export CODEIDE_TOOLS_MANIFEST="\$manifest"
+export CODEIDE_TOOLS_MANIFEST=/smoke/banc-manifest.json
 u=\$(uname -m)
 echo "banc : uname -m=\$u (arche cible : \$arch)"
 case \$arch:\$u in
