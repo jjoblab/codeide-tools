@@ -102,7 +102,7 @@
   "components": [
     {
       "arch": "aarch64",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "build-tools",
       "installPath": "build-tools/33.0.3",
@@ -152,7 +152,7 @@
     },
     {
       "arch": "x86_64",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "build-tools",
       "installPath": "build-tools/33.0.3",
@@ -177,7 +177,7 @@
     },
     {
       "arch": "aarch64",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "build-tools",
       "installPath": "build-tools/34.0.3",
@@ -227,7 +227,7 @@
     },
     {
       "arch": "x86_64",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "build-tools",
       "installPath": "build-tools/34.0.3",
@@ -302,7 +302,7 @@
     },
     {
       "arch": "x86_64",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "build-tools",
       "installPath": "build-tools/35.0.2",
@@ -377,7 +377,7 @@
     },
     {
       "arch": "x86_64",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "build-tools",
       "installPath": "build-tools/36.0.0",
@@ -518,7 +518,7 @@
     },
     {
       "arch": "aarch64",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "platform-tools",
       "installPath": "platform-tools",
@@ -564,7 +564,7 @@
     },
     {
       "arch": "x86_64",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "platform-tools",
       "installPath": "platform-tools",
@@ -587,7 +587,7 @@
     },
     {
       "arch": "aarch64",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "platform-tools",
       "installPath": "platform-tools",
@@ -633,7 +633,7 @@
     },
     {
       "arch": "x86_64",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "platform-tools",
       "installPath": "platform-tools",
@@ -702,7 +702,7 @@
     },
     {
       "arch": "x86_64",
-      "channel": "preview",
+      "channel": "stable",
       "critical": true,
       "id": "platform-tools",
       "installPath": "platform-tools",
@@ -724,7 +724,7 @@
       "version": "35.0.2"
     }
   ],
-  "generatedAt": "2026-10-06T06:41:05Z",
+  "generatedAt": "2026-10-06T09:11:30Z",
   "profiles": {
     "agp9": {
       "components": [

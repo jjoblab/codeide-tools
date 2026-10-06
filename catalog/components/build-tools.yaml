@@ -30,19 +30,19 @@ smoke:
   "35.0.2":
     aarch64: { status: ok, source: "CodeIDE v0.51.0+ sur appareil (ADR 0082, dépôt CodeIDE) — binaires identiques" }
     arm:     { status: pending, reason: "jamais exécuté (amont non testé, hôte x86_64) — smoke.yml requis" }
-    x86_64:  { status: pending, reason: "jamais exécuté — smoke.yml requis" }
+    x86_64:  { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37429101295 — smoke.yml bionic x86_64 (install + verify --deep, téléchargement réel)" }
   "34.0.3":
-    aarch64: { status: pending, reason: "pas d'évidence d'exécution — smoke.yml requis" }
+    aarch64: { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37429101295 — smoke.yml bionic aarch64 (install + verify --deep, téléchargement réel)" }
     arm:     { status: pending, reason: "idem" }
-    x86_64:  { status: pending, reason: "idem" }
+    x86_64:  { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37429101295 — smoke.yml bionic x86_64 (install + verify --deep, téléchargement réel)" }
   "33.0.3":
-    aarch64: { status: pending, reason: "pas d'évidence d'exécution — smoke.yml requis" }
+    aarch64: { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37429101295 — smoke.yml bionic aarch64 (install + verify --deep, téléchargement réel)" }
     arm:     { status: pending, reason: "idem" }
-    x86_64:  { status: pending, reason: "idem" }
+    x86_64:  { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37429101295 — smoke.yml bionic x86_64 (install + verify --deep, téléchargement réel)" }
   "36.0.0":
     aarch64: { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37424794649 — porte bionic publish.yml (install+verify+aapt2)" }
     arm:     { status: pending, reason: "idem" }
-    x86_64:  { status: pending, reason: "idem" }
+    x86_64:  { status: ok, source: "https://github.com/jjoblab/codeide-tools/actions/runs/37429101295 — smoke.yml bionic x86_64 (install + verify --deep, téléchargement réel)" }
 versions:
   - version: "36.0.0"
     revision: r1
