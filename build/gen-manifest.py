@@ -141,7 +141,7 @@ def build_v2_components(upstream: dict, components: list[dict], artifacts: dict)
                 if min_api:
                     entry["minAndroidApi"] = min_api
                 if comp.get("archive-root"):
-                    entry["archiveRoot"] = comp["archive-root"]
+                    entry["archiveRoot"] = subst(comp["archive-root"], version)
                 out.append(entry)
     # Ordre stable : id, version (desc), arch.
     def sort_key(e: dict):

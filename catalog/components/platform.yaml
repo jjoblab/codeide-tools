@@ -12,6 +12,7 @@ requires: []
 # champ additif archiveRoot — l'installateur déplace la racine extraite vers
 # installPath (ADR 0001). Le contenu du zip Google suffit à AGP (pas de
 # package.xml — note 07 § 3).
+archive-root: "{version}"
 verify:
   cmd: platforms/{version}/android.jar
   expect: "^$"   # présence (le jar n'est pas exécuté) : la vérification profonde

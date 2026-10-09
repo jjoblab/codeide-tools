@@ -453,6 +453,7 @@
     },
     {
       "arch": "any",
+      "archiveRoot": "android-35",
       "channel": "stable",
       "critical": true,
       "id": "platform",
@@ -475,6 +476,7 @@
     },
     {
       "arch": "any",
+      "archiveRoot": "android-36",
       "channel": "stable",
       "critical": true,
       "id": "platform",
@@ -497,6 +499,7 @@
     },
     {
       "arch": "any",
+      "archiveRoot": "android-37.2",
       "channel": "stable",
       "critical": true,
       "id": "platform",
@@ -725,7 +728,7 @@
       "version": "35.0.2"
     }
   ],
-  "generatedAt": "2026-10-06T12:09:32Z",
+  "generatedAt": "2026-10-09T07:40:10Z",
   "profiles": {
     "agp9": {
       "components": [
